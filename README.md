@@ -19,10 +19,16 @@
 
 项目按开源项目规范组织：文档、许可证、变更记录、素材脚本、部署说明齐备，可直接 fork 后替换 `site.json` 变成自己的主页。
 
-### 在线访问
+### 在线访问与仓库
 
-- 主站：<https://sunzhihaoai.top>
-- 后台：<https://sunzhihaoai.top/admin/>（需 GitHub 账号授权）
+| 用途 | 地址 |
+| --- | --- |
+| 线上主站 | <https://sunzhihaoai.top> |
+| 可视化后台 | <https://sunzhihaoai.top/admin/>（需 GitHub 账号授权） |
+| GitHub 主仓库 | <https://github.com/Sun-1025/portfolio> |
+| Gitee 镜像仓库 | <https://gitee.com/SunZHAO1025/portfolio> |
+
+线上站点由 `Sun-1025/Sun-1025.github.io` 仓库发布，本仓库是源码与文档的公开版本。两者内容同源，但**不要**在本仓库开启 Pages 并绑定同一域名，否则会与主站冲突。
 
 ---
 
