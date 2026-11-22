@@ -1,0 +1,6 @@
+{
+  "name": "decap-oauth-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minimal GitHub OAuth proxy for Decap CMS, deployed on Vercel."
+}
