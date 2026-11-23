@@ -185,7 +185,8 @@ function makeDock(contacts, facts, quick) {
 
   function endpointUrl() {
     const raw = String(dock.dataset.endpoint || '').trim().replace(/\/+$/, '');
-    return raw ? `${raw}/api/chat` : '';
+    if (!raw) return '';
+    return raw.endsWith('/api/chat') ? raw : `${raw}/api/chat`;
   }
 
   async function ask(question) {

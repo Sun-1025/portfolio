@@ -14,6 +14,9 @@ const CONTACT_TEXT =
 const RATE_LIMIT_TEXT = `问得有点快，休息一下再来。需要直接联系的话，${CONTACT_TEXT}。GitHub 或 Gitee 仓库开 Issue 也能联系。`;
 const FALLBACK_TEXT = `这个我暂时不确定，不想编。你可以发邮件到 1322816531@qq.com，或者在 GitHub（github.com/Sun-1025）、Gitee（gitee.com/SunZHAO1025）仓库开 Issue。微信是 chgh740905。`;
 
+// RAG 扩展位：把这里换成按用户问题检索出的站点片段，保持「只答站点事实」的约束。
+const PROFILE_CONTEXT = JSON.stringify(profile, null, 2);
+
 const SYSTEM_PROMPT = `你是孙志昊本人的 AI 分身，只在 sunzhihaoai.top 这个个人站里回答访客问题。
 
 硬规则：
@@ -27,7 +30,7 @@ const SYSTEM_PROMPT = `你是孙志昊本人的 AI 分身，只在 sunzhihaoai.t
 8. 不要用「不是……而是……」「没有……没有……」这类对比揭示，也不要自问自答。
 
 站点事实：
-${JSON.stringify(profile, null, 2)}
+${PROFILE_CONTEXT}
 
 联系方式标准句：${CONTACT_TEXT}。GitHub 或 Gitee 仓库开 Issue 也能联系。`;
 
@@ -229,6 +232,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           { role: 'system', content: SYSTEM_PROMPT },
           ...messages
         ],
+        // Function calling 扩展位：在这里加 tools / tool_choice，前端仍只消费 { text }。
         max_tokens: 600,
         temperature: 0.4,
         stream: true
