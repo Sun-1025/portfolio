@@ -11,6 +11,12 @@ type ChatMessage = { role: Role; content: string };
 const CONTACT_TEXT =
   '邮箱 1322816531@qq.com ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 chgh740905';
 
+const CONTACT_STANDARD = `${CONTACT_TEXT}。GitHub 或 Gitee 仓库开 Issue 也能联系。`;
+const CONTACT_HANDLE_RE =
+  /1322816531@qq\.com|github\.com\/Sun-1025|gitee\.com\/SunZHAO1025|chgh740905/i;
+const CONTACT_QUERY_RE =
+  /联系|邮箱|邮件|微信|github|gitee|issue|合作|找我|实习|工作|招聘|岗位|入职|offer/i;
+
 const RATE_LIMIT_TEXT = `问得有点快，休息一下再来。需要直接联系的话，${CONTACT_TEXT}。GitHub 或 Gitee 仓库开 Issue 也能联系。`;
 const FALLBACK_TEXT = `这个我暂时不确定，不想编。你可以发邮件到 1322816531@qq.com，或者在 GitHub（github.com/Sun-1025）、Gitee（gitee.com/SunZHAO1025）仓库开 Issue。微信是 chgh740905。`;
 
@@ -115,11 +121,30 @@ function upstreamUrl(base: string): string {
   return clean.endsWith('/chat/completions') ? clean : `${clean}/chat/completions`;
 }
 
-function sseStream(upstream: Response): ReadableStream<Uint8Array> {
+function sseStream(upstream: Response, ensureContact: boolean): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   let buffer = '';
+  let answerText = '';
   const reader = upstream.body!.getReader();
+
+  const appendContact = (emit: (payload: Record<string, unknown>) => void) => {
+    const hasAllContact =
+      /1322816531@qq\.com/.test(answerText) &&
+      /github\.com\/Sun-1025/.test(answerText) &&
+      /gitee\.com\/SunZHAO1025/.test(answerText) &&
+      /chgh740905/.test(answerText);
+    const hasIssueLine = /仓库开 Issue 也能联系/.test(answerText);
+    if (hasAllContact && hasIssueLine) return;
+    if (!hasAllContact) {
+      emit({ text: `\n\n${CONTACT_STANDARD}` });
+      answerText += `\n\n${CONTACT_STANDARD}`;
+    } else if (!hasIssueLine) {
+      const issueLine = '\n\nGitHub 或 Gitee 仓库开 Issue 也能联系。';
+      emit({ text: issueLine });
+      answerText += issueLine;
+    }
+  };
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -141,6 +166,7 @@ function sseStream(upstream: Response): ReadableStream<Uint8Array> {
             const data = trimmed.slice(5).trim();
             if (!data) continue;
             if (data === '[DONE]') {
+              if (ensureContact || CONTACT_HANDLE_RE.test(answerText)) appendContact(emit);
               emit({ done: true });
               controller.enqueue(encoder.encode('data: [DONE]\n\n'));
               controller.close();
@@ -154,12 +180,16 @@ function sseStream(upstream: Response): ReadableStream<Uint8Array> {
                 json.choices?.[0]?.delta?.content ||
                 json.choices?.[0]?.message?.content ||
                 '';
-              if (text) emit({ text });
+              if (text) {
+                answerText += text;
+                emit({ text });
+              }
             } catch {
               // 跳过不完整或非 JSON 的事件，继续读下一段
             }
           }
         }
+        if (ensureContact || CONTACT_HANDLE_RE.test(answerText)) appendContact(emit);
         emit({ done: true });
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
@@ -257,14 +287,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  return new NextResponse(sseStream(upstream), {
-    status: 200,
-    headers: {
-      ...corsHeaders(origin),
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no'
+  return new NextResponse(
+    sseStream(upstream, CONTACT_QUERY_RE.test(messages[messages.length - 1].content)),
+    {
+      status: 200,
+      headers: {
+        ...corsHeaders(origin),
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      }
     }
-  });
+  );
 }
