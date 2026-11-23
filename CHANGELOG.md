@@ -1,5 +1,19 @@
 # 更新记录
 
+## 3.1.0 — 2026-11-23（文件转换台）
+
+- `#/tools` 新增浏览器本地文件转换台：拖拽/选择、格式搜索、分类过滤、批量队列、目标格式选择、全部转换、下载全部、转换历史。
+- 开放 18 条真实转换路径：图片 PNG/JPG/JPEG/WebP/GIF → PNG/JPG/WebP（GIF 取首帧）；JSON ↔ CSV/TXT；CSV ↔ JSON/TXT；Markdown ↔ HTML/TXT；TXT → HTML；音频 MP3/OGG/OGA/M4A/AAC/FLAC → WAV。
+- 转换全部在本机完成，不上传文件；不提供视频、Office、PDF、电子书、3D 转换，也不伪造成功结果。
+- 原 Markdown、字数、单位、日期四个小工具保留，工具页改为「转换台 + 常用小工具」结构。
+- 新增 `qa/test-convert-core.mjs` 核心单测与 `qa/test-converter-ui.cjs` 批量 UI 测试。
+
+### 验证
+
+- 核心单测覆盖 18 条路由计数、扩展名归一化、JSON↔CSV、带引号/换行 CSV、Markdown→HTML、TXT→HTML、HTML→TXT。
+- 浏览器批量实测：JSON→CSV、Markdown→HTML、PNG→WebP、MP3（WAV 数据）→WAV 四个文件全部完成，历史记录写入，无控制台错误。
+- 桌面 1440×1050 与移动 390×844 均无横向溢出。
+
 ## 3.0.0 — 2026-11-23（奶白身份照补丁）
 
 - 首页 HUD 肖像替换为独立奶白底身份照 `portrait-id-cream.webp`：保留经典版 3D 动漫人物的黑发、圆框眼镜与黑色 T 恤，去掉黑板、文字、电脑和桌面。

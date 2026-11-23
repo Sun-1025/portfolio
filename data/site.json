@@ -105,7 +105,7 @@
         "label": "案例与经历"
       },
       {
-        "value": "4",
+        "value": "5",
         "label": "在线工具"
       }
     ],
@@ -601,9 +601,20 @@
     ]
   },
   "tools": {
-    "title": "在线工具",
-    "intro": "先用得上的小工具。全部在浏览器里跑，不上传任何数据。",
+    "title": "文件转换台",
+    "intro": "把文件拖进来，选目标格式，批量转换后直接下载。图片、数据、文档和音频都在浏览器本地处理，不上传服务器。",
     "items": [
+      {
+        "id": "converter",
+        "name": "文件转换台",
+        "desc": "拖拽文件，搜索格式，批量转换成 PNG、JPG、WEBP、JSON、CSV、HTML、TXT 或 WAV。",
+        "category": "convert",
+        "module": "converter.js",
+        "icon": "⇄",
+        "enabled": true,
+        "featured": true,
+        "order": 0
+      },
       {
         "id": "markdown",
         "name": "Markdown 转 HTML",

@@ -66,10 +66,21 @@ portfolio-v2/
 | 分支 | 入口 | 说明 |
 |---|---|---|
 | 个人主页 | `#/` / `#/work` | Hero、关于、项目、技能、经历、联系 |
-| 在线工具 | `#/tools` | Markdown、字数、单位、日期四个工具 |
+| 在线工具 | `#/tools` | 文件转换台（18 条真实路径）+ Markdown、字数、单位、日期四个小工具 |
 | 经典版 | `/classic/` | 原版 3D 黑板场景，完整保留 |
 
 顶部导航统一；后台可控制分支显示/隐藏与导航排序。前台路由也会遵守分支隐藏开关。
+
+## 在线工具
+
+`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 18 条真实转换路径：
+
+- 图片：PNG / JPG / JPEG / WebP / GIF 转为 PNG、JPG 或 WebP；GIF 只取首帧。
+- 数据：JSON ↔ CSV / TXT，CSV ↔ JSON / TXT。
+- 文档：Markdown ↔ HTML / TXT，TXT → HTML。
+- 音频：MP3 / OGG / OGA / M4A / AAC / FLAC 统一转为 WAV。
+
+视频、Office、PDF、电子书和 3D 模型需要本地转码引擎，当前不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频 80 MB。
 
 ## 常用命令
 

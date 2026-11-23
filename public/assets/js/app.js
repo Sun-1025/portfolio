@@ -423,7 +423,9 @@ function toolModules() {
 function renderTools() {
   const tools = state.data.tools;
   const list = toolModules();
-  const cards = list.map((t) => `
+  const featured = list.find((t) => t.featured || t.id === 'converter');
+  const utilities = list.filter((t) => t !== featured);
+  const cards = utilities.map((t) => `
     <a class="tool-card reveal" href="#/tools/${esc(t.id)}">
       <span class="tool-icon">${esc(t.icon || '↗')}</span>
       <span class="tool-body">
@@ -434,22 +436,45 @@ function renderTools() {
       <span class="tool-go">打开 →</span>
     </a>`).join('');
 
+  setTimeout(async () => {
+    const host = $('#converterApp');
+    if (!host || !featured) return;
+    try {
+      const mod = await import(`/tools/${featured.module}?v=${Date.now()}`);
+      if (typeof mod.render !== 'function') throw new Error('转换台模块缺少 render 函数');
+      host.innerHTML = '';
+      await mod.render(host, { toast });
+    } catch (err) {
+      host.innerHTML = `<p class="tool-error">转换台加载失败：${esc(err.message)}</p>`;
+    }
+  }, 0);
+
   return `
-  <section class="detail wrap" style="padding-bottom:0">
-    <div class="section-head" style="margin-bottom:26px">
+  <section class="detail wrap tools-page">
+    <div class="section-head" style="margin-bottom:22px">
       <span class="section-no">03 / TOOLS</span>
       <div>
-        <h1 class="section-title">${esc(tools.title || '在线工具')}</h1>
+        <h1 class="section-title">${esc(tools.title || '文件转换台')}</h1>
         <p class="section-lead">${esc(tools.intro || '')}</p>
       </div>
     </div>
-    <div class="work-meta">
-      <span><strong>MODULE&nbsp;/&nbsp;TOOLS</strong></span>
-      <span>${list.length} ACTIVE</span>
-      <span class="meta-right">LOCAL-FIRST</span>
+    <div class="tools-status-strip">
+      <span class="tools-status-live"><i></i>LOCAL ENGINE / READY</span>
+      <span><b>18</b> REAL ROUTES</span>
+      <span><b>${list.length}</b> ACTIVE MODULES</span>
+      <span class="tools-status-right">NO SERVER / NO UPLOAD</span>
+    </div>
+    <div class="converter-mount" id="converterApp"><p class="tool-loading">转换台初始化中…</p></div>
+
+    <div class="section-head" style="margin:54px 0 18px">
+      <span class="section-no">03.1 / UTILITIES</span>
+      <div>
+        <h2 class="section-title" style="font-size:clamp(30px,4vw,46px)">常用小工具</h2>
+        <p class="section-lead">转换台之外，保留原来的四个轻量工具。它们同样是本地计算。</p>
+      </div>
     </div>
     <div class="tool-grid">${cards || '<p class="case-empty">工具正在整理。</p>'}</div>
-    <p class="hint" style="margin-top:22px">所有计算都在本地浏览器完成，不上传任何内容。</p>
+    <p class="hint" style="margin-top:22px">当前开放：图片、数据、文档、音频转换。视频、Office/PDF、电子书和 3D 模型需要本地转换引擎，暂不开放；不会伪造转换成功。</p>
   </section>`;
 }
 
