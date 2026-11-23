@@ -115,13 +115,16 @@ function applyTheme(theme) {
 
 /* ---------------- 数据 ---------------- */
 async function loadData() {
-  try {
-    const res = await fetch('/api/content', { cache: 'no-store' });
-    if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
-      state.source = 'api';
-      return await res.json();
-    }
-  } catch (err) { /* 静态环境没有 API，继续回退 */ }
+  // 静态导出页会带 data-static="1"，直接读 data/site.json，避免无意义的 /api 404。
+  if (document.documentElement.dataset.static !== '1') {
+    try {
+      const res = await fetch('/api/content', { cache: 'no-store' });
+      if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
+        state.source = 'api';
+        return await res.json();
+      }
+    } catch (err) { /* 静态环境没有 API，继续回退 */ }
+  }
   const res = await fetch('/data/site.json', { cache: 'no-store' });
   if (!res.ok) throw new Error('无法读取站点数据');
   state.source = 'static';

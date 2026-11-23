@@ -134,6 +134,9 @@ async function main() {
 
   // 1. 页面与资源
   copy(path.join(PUBLIC, 'index.html'), path.join(OUT, 'index.html'));
+  const exportedIndex = path.join(OUT, 'index.html');
+  const exportedHtml = fs.readFileSync(exportedIndex, 'utf8').replace('<html lang="zh-CN"', '<html lang="zh-CN" data-static="1"');
+  fs.writeFileSync(exportedIndex, exportedHtml, 'utf8');
   copy(path.join(PUBLIC, 'assets'), path.join(OUT, 'assets'));
   copy(path.join(PUBLIC, 'tools'), path.join(OUT, 'tools'));
   copy(path.join(PUBLIC, 'classic'), path.join(OUT, 'classic'));
