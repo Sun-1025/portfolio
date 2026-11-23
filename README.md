@@ -1,18 +1,19 @@
-# 孙志昊 · 个人站 2.0
+# 孙志昊 · 个人站 3.0
 
 个人主页 + 在线工具 + 可视化后台，保留原版 3D 场景页作为「经典版」。
+3.0 采用 **Signal / Control Room** 视觉方向：近黑深空底、酸性绿与冰青信号色、坐标网格、HUD 数据面板、等宽字标签与克制动效。
 
-## 在线
+## 视觉系统
 
-- 线上站点：<https://sunzhihaoai.top>
-- GitHub 源码：<https://github.com/Sun-1025/portfolio>
-- Gitee 镜像：<https://gitee.com/SunZHAO1025/portfolio>
-- 后台入口：`/admin`（仅本地 / 内网服务可用；GitHub Pages 静态包不含后台）
+- 主色：`#060809` 近黑 / `#d7ff4f` 酸性信号绿 / `#6ff5e4` 冰青遥测色
+- 字体：Space Grotesk（标题）+ Inter（正文）+ JetBrains Mono（标签与数据）
+- 间距：以 8px 为基础节奏；卡片、面板、导航均统一圆角与边框层级
+- 原则：不超过 3 个主色；标题层级不超过 3 级；动效只用于状态反馈、信号脉冲和卡片光晕
 
 ## 快速启动
 
 ```powershell
-cd portfolio-v2
+cd C:\Users\sun\OneDrive\Desktop\实习\portfolio-v2
 npm install
 npm start           # 默认 http://localhost:8080
 ```

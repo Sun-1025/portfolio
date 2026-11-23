@@ -19,3 +19,7 @@ public/uploads/*
 Thumbs.db
 .vscode/
 .idea/
+
+# 本地视觉 QA 产物
+qa/
+.tech-backup/

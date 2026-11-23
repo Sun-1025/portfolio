@@ -51,6 +51,49 @@ function toast(message) {
   toast.timer = setTimeout(() => el.classList.remove('is-on'), 2200);
 }
 
+/* ---------------- 控制台氛围 ---------------- */
+function renderTicker() {
+  const tokens = [
+    'EMBEDDED SYSTEMS', 'IOT / ESP32', 'AI AGENTS', 'C / C++',
+    'PYTHON', 'SQL SERVER', 'INTERFACE DESIGN', 'SIGNAL / NOISE'
+  ];
+  const items = tokens.map((t) => `<span class="ticker-item"><i></i>${esc(t)}</span>`).join('');
+  return `<div class="ticker" aria-hidden="true"><div class="ticker-track">${items}${items}</div></div>`;
+}
+
+function updateClock() {
+  const el = $('#localTime');
+  if (!el) return;
+  const value = new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Shanghai'
+  }).format(new Date());
+  el.textContent = `${value} CST`;
+}
+
+function updateScrollProgress() {
+  const el = $('#scrollProgress');
+  if (!el) return;
+  const doc = document.documentElement;
+  const max = doc.scrollHeight - doc.clientHeight;
+  const ratio = max > 0 ? Math.min(1, Math.max(0, doc.scrollTop / max)) : 0;
+  el.style.width = `${ratio * 100}%`;
+}
+
+function bindPointerGlow() {
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  window.addEventListener('pointermove', (e) => {
+    document.documentElement.style.setProperty('--mx', `${e.clientX}px`);
+    document.documentElement.style.setProperty('--my', `${e.clientY}px`);
+    if (!(e.target instanceof Element)) return;
+    const card = e.target.closest('.case-card');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty('--mx-local', `${e.clientX - rect.left}px`);
+    card.style.setProperty('--my-local', `${e.clientY - rect.top}px`);
+  }, { passive: true });
+}
+
+
 /* ---------------- 主题 ---------------- */
 function currentTheme() {
   const explicit = document.documentElement.dataset.theme;
@@ -67,7 +110,7 @@ function applyTheme(theme) {
     btn.setAttribute('aria-label', theme === 'dark' ? '切换到浅色' : '切换到深色');
   }
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', theme === 'dark' ? '#12110b' : '#f1eee4');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#060809' : '#eff2e8');
 }
 
 /* ---------------- 数据 ---------------- */
@@ -155,6 +198,11 @@ function renderHome() {
   const loc = facts.find((f) => f.k === '所在地');
   const dir = facts.find((f) => f.k === '主攻方向');
   const about = home.about || {};
+  const focus = dir ? String(dir.v || '').split(/[、/]/)[0].trim() : 'EMBEDDED';
+
+  const titleHtml = String(hero.title || '').split('\n').map((line, i) =>
+    `<span class="hero-line${i === 1 ? ' is-accent' : ''}">${esc(line)}</span>`
+  ).join('');
 
   const abilities = (about.abilities || []).map((a, i) => `
     <article class="ability reveal">
@@ -180,8 +228,12 @@ function renderHome() {
   return `
   <section class="hero wrap">
     <div class="hero-copy">
-      <div class="eyebrow">${esc(hero.eyebrow || state.data.site.tagline)}</div>
-      <h1 class="hero-title">${esc(hero.title || '').replace(/\n/g, '<br>')}</h1>
+      <div class="eyebrow">
+        <span class="eyebrow-index">00</span>
+        <span class="eyebrow-text">${esc(hero.eyebrow || state.data.site.tagline)}</span>
+        <span class="live"><i></i>LIVE&nbsp;/&nbsp;2026</span>
+      </div>
+      <h1 class="hero-title">${titleHtml}</h1>
       <p class="hero-intro">${esc(hero.intro || '')}</p>
       <div class="hero-actions">
         ${hero.primary ? `<a class="btn btn--solid" href="${safeUrl(hero.primary.href)}">${esc(hero.primary.label)} <span class="arrow">→</span></a>` : ''}
@@ -192,13 +244,32 @@ function renderHome() {
         ${dir ? `<span><i></i>${esc(dir.v)}</span>` : ''}
         <span><i></i>Open to internship</span>
       </div>
+      <div class="hero-terminal" aria-hidden="true">
+        <div class="terminal-head"><span>PROFILE.LOG</span><span>REV&nbsp;2026.11</span></div>
+        <div class="terminal-line"><span class="prompt">~/sunzhihao</span><span class="cmd">$</span><span>build --focus embedded, ai, interface</span><span class="caret"></span></div>
+      </div>
     </div>
-    <figure class="hero-figure">
-      <div class="portrait-frame"><img src="${safeUrl(state.data.site.avatar)}" alt="孙志昊" fetchpriority="high" decoding="async"></div>
-      <figcaption><span>PORTRAIT / 2026</span><span>DONGYING</span></figcaption>
-    </figure>
+    <aside class="hero-console" aria-label="个人档案终端">
+      <div class="console-head">
+        <span>PROFILE&nbsp;/&nbsp;001</span>
+        <span class="console-status"><i></i>ONLINE</span>
+      </div>
+      <div class="portrait-stage">
+        <span class="hero-orbit" aria-hidden="true"></span>
+        <figure class="hero-figure">
+          <div class="portrait-frame"><img src="${safeUrl(state.data.site.avatar)}" alt="孙志昊" fetchpriority="high" decoding="async"></div>
+          <figcaption><span>PORTRAIT&nbsp;/&nbsp;2026</span><span>DONGYING</span></figcaption>
+        </figure>
+      </div>
+      <div class="console-readout">
+        <div><span>SIGNAL</span><b class="signal">98.4</b></div>
+        <div><span>FOCUS</span><b>${esc(focus)}</b></div>
+        <div><span>LOCAL</span><b class="mono" id="localTime">--:--:--</b></div>
+      </div>
+    </aside>
   </section>
 
+  ${renderTicker()}
   ${renderStats()}
   ${renderNotice()}
 
@@ -222,13 +293,16 @@ function renderHome() {
           <p class="sub-title">未来方向</p>
           <div class="future">${future}</div>
         </div>
-        <aside class="reveal">
-          <div class="facts">${factsHtml}</div>
-          <p class="sub-title">技术能力</p>
-          <div class="abilities" style="grid-template-columns:1fr">${abilities}</div>
-          <p class="sub-title">技能栈</p>
+        <aside class="about-side reveal">
+          <div class="side-panel">
+            <div class="panel-head"><span>SPEC&nbsp;/&nbsp;PROFILE</span><span>001</span></div>
+            <div class="facts">${factsHtml}</div>
+          </div>
+          <p class="sub-title">技术能力 <span>/ CAPABILITIES</span></p>
+          <div class="abilities">${abilities}</div>
+          <p class="sub-title">技能栈 <span>/ STACK</span></p>
           <div class="skills">${skills}</div>
-          <p class="sub-title">联系</p>
+          <p class="sub-title">联系 <span>/ CONTACT</span></p>
           <div class="skills">${contacts}</div>
         </aside>
       </div>
@@ -268,6 +342,11 @@ function renderWork() {
         <p class="section-lead">${esc(work.intro || '')}</p>
       </div>
     </div>
+    <div class="work-meta">
+      <span><strong>DATABASE&nbsp;/&nbsp;WORK</strong></span>
+      <span id="workCount">${cases.length} RECORDS</span>
+      <span class="meta-right" id="workFilterLabel">FILTER&nbsp;/&nbsp;ALL</span>
+    </div>
     <div class="filters" id="filters">${filters}</div>
     <div class="case-grid" id="caseGrid">${cards || '<p class="case-empty">这个分类下还没有内容。</p>'}</div>
   </section>`;
@@ -284,13 +363,18 @@ function bindWorkFilters() {
     const work = state.data.work;
     const cases = (work.cases || []).filter((c) => state.filter === 'all' || c.category === state.filter);
     $('#caseGrid').innerHTML = cases.map((c) => `
-      <a class="case-card" href="#/work/${esc(c.id)}">
+      <a class="case-card reveal" href="#/work/${esc(c.id)}">
         <div class="case-top"><span>${esc(c.number || '')}</span><span class="case-cat">${esc(CAT_LABEL[c.category] || '')}</span></div>
         <h3 class="case-title">${esc(c.title)}</h3>
         <p class="case-summary">${esc(c.summary)}</p>
         <div class="case-tags">${(c.tags || []).slice(0, 4).map((t) => `<span class="case-tag">${esc(t)}</span>`).join('')}</div>
         <span class="case-arrow">↗</span>
       </a>`).join('') || '<p class="case-empty">这个分类下还没有内容。</p>';
+    const count = $('#workCount');
+    if (count) count.textContent = `${cases.length} RECORDS`;
+    const label = $('#workFilterLabel');
+    if (label) label.textContent = `FILTER / ${state.filter === 'all' ? 'ALL' : String(state.filter).toUpperCase()}`;
+    revealIn();
   });
 }
 
@@ -318,6 +402,7 @@ function renderCase(id) {
     <div class="detail-body">
       <div class="detail-sections">${sections || '<p>暂无详情。</p>'}</div>
       <aside class="detail-side">
+        <div class="panel-head"><span>ASSET&nbsp;/&nbsp;${esc(c.number || 'LOG')}</span><span>${esc(CAT_LABEL[c.category] || 'CASE')}</span></div>
         ${images ? `<div class="detail-images">${images}</div>` : ''}
         ${tags ? `<div class="detail-tags">${tags}</div>` : ''}
         ${c.result ? `<div class="detail-result">${esc(c.result)}</div>` : ''}
@@ -354,6 +439,11 @@ function renderTools() {
         <h1 class="section-title">${esc(tools.title || '在线工具')}</h1>
         <p class="section-lead">${esc(tools.intro || '')}</p>
       </div>
+    </div>
+    <div class="work-meta">
+      <span><strong>MODULE&nbsp;/&nbsp;TOOLS</strong></span>
+      <span>${list.length} ACTIVE</span>
+      <span class="meta-right">LOCAL-FIRST</span>
     </div>
     <div class="tool-grid">${cards || '<p class="case-empty">工具正在整理。</p>'}</div>
     <p class="hint" style="margin-top:22px">所有计算都在本地浏览器完成，不上传任何内容。</p>
@@ -401,9 +491,10 @@ function renderFoot() {
   const links = contacts.filter((c) => c.url).map((c) => `<a href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${esc(c.label)} ↗</a>`).join('');
   const adminLink = state.source === 'api' ? '<a href="/admin">后台管理</a>' : '';
   return `<div class="wrap">
+    <div class="foot-kicker"><span>04 / CONTACT</span><span>RESPONSE &lt; 24H</span></div>
     <div class="foot-top">
       <div>
-        <h2 class="foot-title">有想法，<br>随时聊。</h2>
+        <h2 class="foot-title">有想法，<br>随时<em>聊。</em></h2>
         ${email ? `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${esc(email.value)}</a>` : ''}
       </div>
       <div class="foot-links">
@@ -415,7 +506,7 @@ function renderFoot() {
     </div>
     <div class="foot-bottom">
       <span>${esc(state.data.site.footer || '')}</span>
-      <span>VANILLA JS · NO BUILD</span>
+      <span>VANILLA&nbsp;JS&nbsp;/&nbsp;SIGNAL&nbsp;UI</span>
     </div>
   </div>`;
 }
@@ -489,6 +580,11 @@ async function render(scrollTop = false) {
 /* ---------------- 初始化 ---------------- */
 async function boot() {
   applyTheme(currentTheme());
+  updateClock();
+  setInterval(updateClock, 1000);
+  updateScrollProgress();
+  bindPointerGlow();
+
   $('#themeBtn')?.addEventListener('click', () => {
     applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
   });
@@ -517,7 +613,10 @@ async function boot() {
   window.addEventListener('hashchange', () => render(true));
   window.addEventListener('scroll', () => {
     $('#topbar')?.classList.toggle('is-scrolled', window.scrollY > 8);
+    updateScrollProgress();
   }, { passive: true });
+  window.addEventListener('resize', updateScrollProgress, { passive: true });
+  updateScrollProgress();
 
   // 实时刷新：后台保存后自动更新页面；静态导出环境没有 SSE，跳过
   if (state.source === 'api') {

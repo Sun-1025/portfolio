@@ -1,35 +1,45 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>孙志昊 · 个人站与工具台</title>
-<meta name="description" content="孙志昊的个人网站：作品集、在线工具与实验记录。">
-<meta name="theme-color" content="#12110b">
-<meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2312110b'/><text x='32' y='44' font-size='32' text-anchor='middle' fill='%23cdd96b' font-family='Georgia'>孙</text></svg>">
+<meta name="description" content="孙志昊的个人技术档案：嵌入式、物联网、AI Agent 与在线工具。">
+<meta name="theme-color" content="#060809">
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23060809'/><rect x='7' y='7' width='50' height='50' fill='none' stroke='%23d7ff4f' stroke-width='1.5'/><text x='32' y='44' font-size='30' text-anchor='middle' fill='%23f1f5ed' font-family='Arial'>孙</text><circle cx='49' cy='15' r='3' fill='%236ff5e4'/></svg>">
 <script>
   try {
     var t = localStorage.getItem('pf-theme');
-    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-  } catch (e) {}
+    document.documentElement.dataset.theme = (t === 'light' || t === 'dark') ? t : 'dark';
+  } catch (e) { document.documentElement.dataset.theme = 'dark'; }
 </script>
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
-<div class="paper-grain" aria-hidden="true"></div>
+<div class="site-grid" aria-hidden="true"></div>
+<div class="site-glow" aria-hidden="true"></div>
+<div class="site-noise" aria-hidden="true"></div>
 
 <header class="topbar" id="topbar">
   <a class="brand" href="#/" aria-label="返回首页">
     <span class="brand-mark">孙</span>
-    <span class="brand-text">孙志昊<small>SUN&nbsp;ZHIHAO</small></span>
+    <span class="brand-text">孙志昊<small>SUN&nbsp;/&nbsp;ZHIHAO</small></span>
   </a>
+  <div class="topbar-readout" aria-hidden="true">
+    <span class="readout-coord">37.43°N&nbsp;&nbsp;118.67°E</span>
+    <span class="status-pill"><i></i>OPEN&nbsp;TO&nbsp;WORK</span>
+  </div>
   <nav class="nav" id="nav" aria-label="主导航"></nav>
   <div class="bar-actions">
     <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="展开导航" aria-expanded="false">☰</button>
     <button class="icon-btn" id="themeBtn" type="button" aria-label="切换明暗主题" title="切换主题">◐</button>
     <a class="icon-btn admin-link" href="/admin" aria-label="进入后台" title="后台管理">⌘</a>
   </div>
+  <span class="scroll-progress" id="scrollProgress" aria-hidden="true"></span>
 </header>
 
 <main class="view" id="view" aria-live="polite"></main>
