@@ -679,7 +679,7 @@
   },
   "ai": {
     "enabled": true,
-    "endpoint": "",
+    "endpoint": "https://sunzhihaoai-ai.vercel.app/api/chat",
     "quick": [
       "你在做什么项目",
       "会哪些技术",
