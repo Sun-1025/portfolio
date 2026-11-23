@@ -8,14 +8,16 @@
 - 新增 `public/assets/js/ai-dock.js`：右下角 `>` 浮标、终端面板、三个快捷问题、SSE 流式输出、移动端底部抽屉、后端不可用时本地事实降级。
 - 新增独立 `ai-server/`：Next.js Route Handler、IP 10 次/小时限流、`max_tokens 600`、`temperature 0.4`、10 轮截断、CORS、SSE、系统提示词与事实表。
 - 新增 `profile.json`、`.env.example`、`ai-server/README.md`；部署时密钥只留在服务端。
-- 静态导出提升到 46 个文件，新增 AI 前端模块；`GitHub Pages` 只承载静态站，AI 代理需独立部署。
+- AI 代理已部署到 Vercel 项目 `sunzhihaoai-ai`，通过自定义域名 `https://ai.sunzhihaoai.top/api/chat` 对国内访问；模型为 Agnes AI `agnes-3.0-flash`。
+- 静态导出提升到 46 个文件，新增 AI 前端模块；`GitHub Pages` 只承载静态站，AI 代理独立部署。`window.SZH_AI_ENDPOINT` 与 `ai.endpoint` 已指向自定义域名。
 
 ### 验证
 
 - `npm run export` 通过，`dist` 46 文件 5.73 MB。
 - 桌面 1440×1000、移动端 390×844 无横向溢出；主标、四条联系方式、AI 面板均正常。
 - 本地 mock 上游端到端验证：浏览器 SSE 收到 `ONLINE`，错误时回退 `LOCAL`，无控制台异常。
-- 代理实测 10 次/小时后返回 429 固定话术；CORS 预检 204。
+- 线上代理实测 200 并流式返回；CORS 预检 204；首页 AI 终端状态切到 `ONLINE`，回答「你在做什么项目」时返回语音监测项目与图书管理系统。
+- 代理实测 10 次/小时后返回 429 固定话术；`ai.sunzhihaoai.top` 的 HTTPS 与自定义域名已验证。
 
 ## 3.3.0 — 2026-11-23（全格式扩展，视频除外）
 

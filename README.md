@@ -87,9 +87,11 @@ PDF、Office、电子书、YAML、Markdown 和 PDF 生成使用按需加载的�
 
 ## 站内 AI 分身
 
-首页右下角的 `>` 是终端入口，面板标题 `~/sunzhihao $ ask`。前端是 `public/assets/js/ai-dock.js`，在 `app.js` 里初始化；默认使用站点事实做本地回答，接上代理后改为 SSE 流式输出。
+首页右下角的 `>` 是终端入口，面板标题 `~/sunzhihao $ ask`。前端是 `public/assets/js/ai-dock.js`，在 `app.js` 里初始化；后端不可达或限流时自动回退到站点事实。
 
-后端是独立的 Next.js 应用 `ai-server/`，只暴露 `POST /api/chat`。密钥只放服务端环境变量，浏览器拿不到。完整说明、环境变量和部署步骤见 [ai-server/README.md](ai-server/README.md)。
+线上代理：`https://ai.sunzhihaoai.top/api/chat`（Vercel 项目 `sunzhihaoai-ai`，自定义域名 CNAME 到 Vercel）。线上模型使用 Agnes AI 的 `agnes-3.0-flash`，Base URL 为 `https://apihub.agnes-ai.com/v1`；密钥只放 Vercel 服务端环境变量，浏览器拿不到。
+
+后端是独立的 Next.js 应用 `ai-server/`，只暴露 `POST /api/chat`。完整说明、环境变量和部署步骤见 [ai-server/README.md](ai-server/README.md)。
 
 ```powershell
 cd ai-server
@@ -98,7 +100,7 @@ npm install
 npm run dev
 ```
 
-部署后把 `public/index.html` 里的 `window.SZH_AI_ENDPOINT` 改成代理地址，或在 `data/site.json` 的 `ai.endpoint` 填同一个地址。GitHub Pages 不能运行 Route Handler，必须单独部署代理，或把静态站改成同源 Express 服务。
+`public/index.html` 的 `window.SZH_AI_ENDPOINT` 与 `data/site.json` 的 `ai.endpoint` 都指向 `https://ai.sunzhihaoai.top/api/chat`。GitHub Pages 不能运行 Route Handler，AI 代理必须单独部署，或把静态站改成同源 Express 服务。
 
 ## 常用命令
 

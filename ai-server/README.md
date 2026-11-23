@@ -44,21 +44,38 @@ Content-Type: application/json
 data: {"text":"我最近在"}
 ```
 
+## 线上状态
+
+- 代理地址：`https://ai.sunzhihaoai.top/api/chat`
+- Vercel 项目：`sunzhihaoai-ai`
+- 模型：Agnes AI `agnes-3.0-flash`
+- 上游 Base URL：`https://apihub.agnes-ai.com/v1`
+- `ai.sunzhihaoai.top` 在阿里云 DNS 添加 CNAME 指向 Vercel，HTTPS 证书已生效
+
+国内网络直连 `*.vercel.app` 不稳定，因此线上使用自有子域名，而不是 `sunzhihaoai-ai.vercel.app`。
+
 ## 接到静态站
 
-在 `public/index.html` 里把 `window.SZH_AI_ENDPOINT` 改成代理地址，例如：
+`public/index.html` 与 `data/site.json` 已经写入：
 
 ```html
 <script>
-  window.SZH_AI_ENDPOINT = 'https://szh-ai.vercel.app';
+  window.SZH_AI_ENDPOINT = 'https://ai.sunzhihaoai.top/api/chat';
 </script>
 ```
 
-或者在 `data/site.json` 的 `ai.endpoint` 里填同一个地址。两者留空时，终端使用 `profile.json` 同源的本地事实降级回答，不会白屏。
+`ai.endpoint` 填同一个地址。两者留空时，终端使用本地事实降级回答，不会白屏。
 
 ## 部署
 
-### 方案 A：Vercel（推荐，能跑 Route Handler）
+### 方案 A：Vercel（当前线上方案）
+
+1. 在 Vercel 导入 `Sun-1025/portfolio`，Root Directory 选 `ai-server`，框架预设 Next.js。
+2. 在 Production 环境添加 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`、`ALLOWED_ORIGINS`。
+3. 在 Project → Settings → Domains 添加 `ai.sunzhihaoai.top`，按 Vercel 给出的值在 DNS 添加 CNAME。
+4. 重新部署，访问 `https://ai.sunzhihaoai.top/api/chat` 验证 SSE。
+
+CLI 等价命令：
 
 ```powershell
 cd ai-server
@@ -69,8 +86,6 @@ npx vercel env add LLM_API_KEY production
 npx vercel env add LLM_MODEL production
 npx vercel --prod
 ```
-
-部署后得到一个 `https://xxx.vercel.app`，把它写进 `window.SZH_AI_ENDPOINT`，重新导出并部署 `sunzhihaoai.top`。
 
 ### 方案 B：已有 Express
 
