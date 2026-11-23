@@ -4,6 +4,7 @@
    ============================================================ */
 
 const CONTACT_TEXT = '邮箱 1322816531@qq.com ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密。GitHub 或 Gitee 仓库开 Issue 也能联系。';
+const CONTACT_LOCAL_RE = /联系|邮箱|邮件|QQ|微信|github|gitee|issue|合作|找我|实习|工作|招聘|岗位|入职|offer/i;
 
 const FALLBACKS = [
   {
@@ -225,10 +226,11 @@ function makeDock(contacts, facts, quick) {
     setStatus('busy', endpoint ? 'THINKING' : 'LOCAL');
 
     try {
-      if (!endpoint) {
+      if (!endpoint || CONTACT_LOCAL_RE.test(text)) {
         const reply = fallbackAnswer(text);
         await typeText(answerNode, reply);
         answer = reply;
+        setStatus('live', 'LOCAL');
       } else {
         const response = await fetch(endpoint, {
           method: 'POST',
