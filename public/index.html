@@ -47,6 +47,11 @@
 <footer class="foot" id="foot"></footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+  // 部署 AI 代理后，把这里改成代理地址，例如 https://xxx.vercel.app
+  // 留空时终端使用站点事实做本地降级回答。
+  window.SZH_AI_ENDPOINT = window.SZH_AI_ENDPOINT || '';
+</script>
 <script type="module" src="/assets/js/app.js"></script>
 </body>
 </html>

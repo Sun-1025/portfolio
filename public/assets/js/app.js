@@ -1,3 +1,5 @@
+import { initAiDock } from './ai-dock.js';
+
 /* ============================================================
    前台应用：数据加载 / 路由 / 视图渲染 / 主题 / 实时刷新
    路由均为 hash 形式：#/、#/work、#/work/:id、#/tools、#/tools/:id
@@ -203,9 +205,10 @@ function renderHome() {
   const about = home.about || {};
   const focus = dir ? String(dir.v || '').split(/[、/]/)[0].trim() : 'EMBEDDED';
 
-  const titleHtml = String(hero.title || '').split('\n').map((line, i) =>
-    `<span class="hero-line${i === 1 ? ' is-accent' : ''}">${esc(line)}</span>`
+  const titleHtml = String(hero.title || '').split('\n').map((line) =>
+    `<span class="hero-line">${esc(line)}</span>`
   ).join('');
+  const heroIntro = String(hero.intro || '').trim();
 
   const abilities = (about.abilities || []).map((a, i) => `
     <article class="ability reveal">
@@ -237,7 +240,7 @@ function renderHome() {
         <span class="live"><i></i>LIVE&nbsp;/&nbsp;2026</span>
       </div>
       <h1 class="hero-title">${titleHtml}</h1>
-      <p class="hero-intro">${esc(hero.intro || '')}</p>
+      ${heroIntro ? `<p class="hero-intro">${esc(heroIntro)}</p>` : ''}
       <div class="hero-actions">
         ${hero.primary ? `<a class="btn btn--solid" href="${safeUrl(hero.primary.href)}">${esc(hero.primary.label)} <span class="arrow">→</span></a>` : ''}
         ${hero.secondary ? `<a class="btn" href="${safeUrl(hero.secondary.href)}">${esc(hero.secondary.label)} <span class="arrow">↗</span></a>` : ''}
@@ -307,6 +310,7 @@ function renderHome() {
           <div class="skills">${skills}</div>
           <p class="sub-title">联系 <span>/ CONTACT</span></p>
           <div class="skills">${contacts}</div>
+          <p class="contact-note">仓库开 Issue 也能联系。</p>
         </aside>
       </div>
     </div>
@@ -516,7 +520,13 @@ async function renderTool(id) {
 function renderFoot() {
   const contacts = state.data.home.contacts || [];
   const email = contacts.find((c) => (c.label || '').includes('邮箱'));
-  const links = contacts.filter((c) => c.url).map((c) => `<a href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${esc(c.label)} ↗</a>`).join('');
+  const contactItems = contacts.map((c) => {
+    const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${esc(c.value)}</span>`;
+    if (c.url) {
+      return `<a class="foot-contact-item" href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${inner}<span class="foot-contact-arrow">↗</span></a>`;
+    }
+    return `<span class="foot-contact-item">${inner}</span>`;
+  }).join('');
   const adminLink = state.source === 'api' ? '<a href="/admin">后台管理</a>' : '';
   return `<div class="wrap">
     <div class="foot-kicker"><span>04 / CONTACT</span><span>RESPONSE &lt; 24H</span></div>
@@ -525,12 +535,15 @@ function renderFoot() {
         <h2 class="foot-title">有想法，<br>随时<em>聊。</em></h2>
         ${email ? `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${esc(email.value)}</a>` : ''}
       </div>
-      <div class="foot-links">
-        ${links}
-        ${adminLink}
-        <a href="/classic/">经典版 ↗</a>
-        <a href="#/">回到顶部 ↑</a>
+      <div class="foot-contact-list">
+        ${contactItems}
+        <p class="foot-issue">GitHub、Gitee 仓库开 Issue 也能联系。</p>
       </div>
+    </div>
+    <div class="foot-links foot-links--meta">
+      ${adminLink}
+      <a href="/classic/">经典版 ↗</a>
+      <a href="#/">回到顶部 ↑</a>
     </div>
     <div class="foot-bottom">
       <span>${esc(state.data.site.footer || '')}</span>
@@ -637,6 +650,13 @@ async function boot() {
   renderNav();
   $('#foot').innerHTML = renderFoot();
   await render();
+
+  initAiDock({
+    contacts: state.data.home?.contacts || [],
+    facts: state.data.home?.about?.facts || [],
+    endpoint: (state.data.ai && state.data.ai.endpoint) || window.SZH_AI_ENDPOINT || '',
+    quick: (state.data.ai && state.data.ai.quick) || []
+  });
 
   window.addEventListener('hashchange', () => render(true));
   window.addEventListener('scroll', () => {

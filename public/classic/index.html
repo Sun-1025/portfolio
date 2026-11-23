@@ -1212,7 +1212,8 @@ let DATA = {
 
   contacts: [
     { label: '邮箱', value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' },
-    { label: 'Gitee', value: 'SunZHAO1025', url: 'https://gitee.com/SunZHAO1025' },
+    { label: 'GitHub', value: 'github.com/Sun-1025', url: 'https://github.com/Sun-1025' },
+    { label: 'Gitee', value: 'gitee.com/SunZHAO1025', url: 'https://gitee.com/SunZHAO1025' },
     { label: '微信', value: 'chgh740905', url: '' }
   ],
 
@@ -1739,6 +1740,7 @@ const RENDER = {
           <div class="links">${DATA.contacts.map(c => c.url
             ? `<a href="${c.url}" ${c.url.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${c.label} · ${c.value}<span class="arrow">↗</span></a>`
             : `<a href="javascript:void(0)">${c.label} · ${c.value}<span class="arrow">·</span></a>`).join('')}</div>
+          <p class="note">GitHub、Gitee 仓库开 Issue 也能联系。</p>
         </div>
         <div class="panel-card">
           <h3>未来方向</h3>

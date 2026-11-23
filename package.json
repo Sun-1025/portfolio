@@ -1,6 +1,6 @@
 {
   "name": "portfolio-v2",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "private": true,
   "description": "个人网站 3.0：Signal 控制台视觉 + 个人主页 + 在线工具 + 可视化后台",
   "main": "server.js",
