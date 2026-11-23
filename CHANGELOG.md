@@ -1,5 +1,11 @@
 # 更新记录
 
+## 3.0.0 — 2026-11-23（奶白身份照补丁）
+
+- 首页 HUD 肖像替换为独立奶白底身份照 `portrait-id-cream.webp`：保留经典版 3D 动漫人物的黑发、圆框眼镜与黑色 T 恤，去掉黑板、文字、电脑和桌面。
+- 头像框移除暗角渐变与扫描线叠加，保留 HUD 边框、`PROFILE / 001` 编号与在线读数；字幕改为 `IDENTITY / 2026`。
+- 原 `portrait-classic.webp`、`portrait-dark.webp` 保留不删，`/classic/` 入口与路由结构不变。
+
 ## 3.0.0 — 2026-11-23（经典肖像补丁）
 
 - 首页 HUD 肖像由 `portrait-dark.webp` 切换为经典版场景裁切 `portrait-classic.webp`：黑板、白色毛笔字背景、戴眼镜的 3D 动漫男生与笔记本。

@@ -9,7 +9,7 @@
 - 字体：Space Grotesk（标题）+ Inter（正文）+ JetBrains Mono（标签与数据）
 - 间距：以 8px 为基础节奏；卡片、面板、导航均统一圆角与边框层级
 - 原则：不超过 3 个主色；标题层级不超过 3 级；动效只用于状态反馈、信号脉冲和卡片光晕
-- 首页肖像：使用经典版黑板场景的 3D 动漫形象裁切（`/assets/portrait-classic.webp`），保留 `/classic/` 原场景入口
+- 首页肖像：使用奶白底身份照 `portrait-id-cream.webp`，保留经典版 3D 动漫人物的黑发、圆框眼镜与黑色 T 恤；`/classic/` 原场景入口仍保留
 
 ## 快速启动
 
