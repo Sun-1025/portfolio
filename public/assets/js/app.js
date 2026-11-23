@@ -260,8 +260,8 @@ function renderHome() {
       <div class="portrait-stage">
         <span class="hero-orbit" aria-hidden="true"></span>
         <figure class="hero-figure">
-          <div class="portrait-frame"><img src="${safeUrl(state.data.site.avatar)}" alt="孙志昊" fetchpriority="high" decoding="async"></div>
-          <figcaption><span>PORTRAIT&nbsp;/&nbsp;2026</span><span>DONGYING</span></figcaption>
+          <div class="portrait-frame"><img src="${safeUrl(state.data.site.avatar)}" alt="孙志昊 · 经典形象" fetchpriority="high" decoding="async"></div>
+          <figcaption><span>CLASSIC&nbsp;/&nbsp;2026</span><span>DONGYING</span></figcaption>
         </figure>
       </div>
       <div class="console-readout">
