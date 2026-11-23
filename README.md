@@ -73,14 +73,18 @@ portfolio-v2/
 
 ## 在线工具
 
-`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 18 条真实转换路径：
+`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 44 条真实转换路径：
 
-- 图片：PNG / JPG / JPEG / WebP / GIF 转为 PNG、JPG 或 WebP；GIF 只取首帧。
-- 数据：JSON ↔ CSV / TXT，CSV ↔ JSON / TXT。
+- 图片：PNG / JPG / JPEG / WebP / GIF 转为 PNG、JPG、WebP 或 PDF；GIF 只取首帧。
+- 数据：JSON ↔ CSV / TXT，CSV ↔ JSON / TXT；JSON / CSV 可写成 XLSX。
 - 文档：Markdown ↔ HTML / TXT，TXT → HTML。
 - 音频：MP3 / OGG / OGA / M4A / AAC / FLAC 统一转为 WAV。
+- PDF：PDF → TXT / PNG / JPG；多页转图片会打包成 ZIP。
+- Office：DOCX → HTML / TXT；XLSX / XLS → CSV / JSON / HTML；PPTX → TXT；CSV / JSON → XLSX。
+- 电子书：EPUB → HTML / TXT。
+- 3D：STL ↔ OBJ 三角网格互换。
 
-视频、Office、PDF、电子书和 3D 模型需要本地转码引擎，当前不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频 80 MB。
+PDF、Office、EPUB 和 PDF 生成使用按需加载的开源库（PDF.js、pdf-lib、Mammoth、SheetJS、JSZip），打开工具页时不下载。视频转码需要 FFmpeg 引擎，当前不开放；PDF 扫描件没有 OCR，只能提取已有文字层；Office 不提供 DOCX 转 PDF 的版式保真转换；MOBI / AZW3、GLB / GLTF 等格式暂不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频/PDF 80 MB、Office/电子书/3D 40 MB；PDF 转图片最多 80 页。
 
 ## 常用命令
 

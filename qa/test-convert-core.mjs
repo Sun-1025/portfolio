@@ -1,20 +1,25 @@
 import assert from 'node:assert/strict';
 import {
-  MATRIX, extOf, familyOf, targetsFor, imageTargetFor,
+  MATRIX, ROUTE_COUNT, extOf, familyOf, targetsFor, imageTargetFor,
   parseCSV, csvToJson, jsonToCsv, convertDataText, markdownToHtmlBody, markdownToText,
 } from '../public/tools/convert-core.js';
 
-const routes = MATRIX.reduce((n, row) => n + row.targets.length, 0);
-assert.equal(routes, 18);
+assert.equal(ROUTE_COUNT, 44);
+assert.equal(MATRIX.length, 18);
 assert.equal(extOf('a.JPEG'), 'jpg');
 assert.equal(extOf('a.markdown'), 'md');
 assert.equal(familyOf('png'), 'image');
 assert.equal(familyOf('csv'), 'data');
+assert.equal(familyOf('pdf'), 'pdf');
+assert.equal(familyOf('docx'), 'office');
+assert.equal(familyOf('epub'), 'ebook');
+assert.equal(familyOf('stl'), 'model');
 assert.equal(familyOf('wav'), '');
 assert.equal(imageTargetFor('png'), 'webp');
 assert.equal(imageTargetFor('webp'), 'png');
-assert.deepEqual(targetsFor('json'), ['csv', 'txt']);
-assert.deepEqual(targetsFor('html'), ['txt']);
+assert.deepEqual(targetsFor('json'), ['csv', 'txt', 'xlsx']);
+assert.deepEqual(targetsFor('pdf'), ['txt', 'png', 'jpg']);
+assert.deepEqual(targetsFor('obj'), ['stl']);
 
 const json = '[{"姓名":"孙志昊","专业":"物联网"},{"姓名":"测试","专业":"计算机"}]';
 const csv = jsonToCsv(json);

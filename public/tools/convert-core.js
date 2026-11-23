@@ -3,21 +3,33 @@
 export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 export const DATA_EXT = ['json', 'csv', 'md', 'markdown', 'txt', 'html', 'htm'];
 export const AUDIO_EXT = ['mp3', 'ogg', 'oga', 'm4a', 'aac', 'flac'];
+export const PDF_EXT = ['pdf'];
+export const OFFICE_EXT = ['docx', 'xlsx', 'xls', 'pptx'];
+export const EBOOK_EXT = ['epub'];
+export const MODEL_EXT = ['stl', 'obj'];
 
-export const IMAGE_TARGETS = ['png', 'jpg', 'webp'];
+export const IMAGE_TARGETS = ['png', 'jpg', 'webp', 'pdf'];
 export const AUDIO_TARGETS = ['wav'];
 
 export const MATRIX = [
-  { family: 'image', from: 'PNG', targets: ['JPG', 'WEBP'], note: '透明底转 JPG 自动补白' },
-  { family: 'image', from: 'JPG / JPEG', targets: ['PNG', 'WEBP'], note: '保留原尺寸' },
-  { family: 'image', from: 'WEBP', targets: ['PNG', 'JPG'], note: '适合导出通用图片' },
-  { family: 'image', from: 'GIF', targets: ['PNG', 'JPG', 'WEBP'], note: '静态首帧' },
-  { family: 'data', from: 'JSON', targets: ['CSV', 'TXT'], note: '数组对象转表格' },
-  { family: 'data', from: 'CSV', targets: ['JSON', 'TXT'], note: '首行作为字段名' },
+  { family: 'image', from: 'PNG', targets: ['JPG', 'WEBP', 'PDF'], note: '透明底转 JPG 自动补白' },
+  { family: 'image', from: 'JPG / JPEG', targets: ['PNG', 'WEBP', 'PDF'], note: '保留原尺寸' },
+  { family: 'image', from: 'WEBP', targets: ['PNG', 'JPG', 'PDF'], note: '适合导出通用图片' },
+  { family: 'image', from: 'GIF', targets: ['PNG', 'JPG', 'WEBP', 'PDF'], note: '静态首帧' },
+  { family: 'data', from: 'JSON', targets: ['CSV', 'TXT', 'XLSX'], note: '数组对象转表格' },
+  { family: 'data', from: 'CSV', targets: ['JSON', 'TXT', 'XLSX'], note: '首行作为字段名' },
   { family: 'data', from: 'Markdown', targets: ['HTML', 'TXT'], note: '可下载完整 HTML' },
   { family: 'data', from: 'TXT', targets: ['HTML'], note: '纯文本转网页' },
   { family: 'data', from: 'HTML', targets: ['TXT'], note: '提取正文' },
   { family: 'audio', from: 'MP3 / M4A / OGG / AAC / FLAC', targets: ['WAV'], note: '浏览器解码后转 PCM' },
+  { family: 'pdf', from: 'PDF', targets: ['TXT', 'PNG', 'JPG'], note: '逐页提取文字或渲染' },
+  { family: 'office', from: 'DOCX', targets: ['HTML', 'TXT'], note: '保留标题、段落与表格' },
+  { family: 'office', from: 'XLSX / XLS', targets: ['CSV', 'JSON', 'HTML'], note: '读取首个工作表' },
+  { family: 'office', from: 'PPTX', targets: ['TXT'], note: '提取每页文字' },
+  { family: 'office', from: 'CSV / JSON', targets: ['XLSX'], note: '写入 Excel 工作簿' },
+  { family: 'ebook', from: 'EPUB', targets: ['HTML', 'TXT'], note: '按阅读顺序合并章节' },
+  { family: 'model', from: 'STL', targets: ['OBJ'], note: '三角网格，无材质' },
+  { family: 'model', from: 'OBJ', targets: ['STL'], note: '三角网格，无材质' },
 ];
 
 export function extOf(name) {
@@ -31,19 +43,35 @@ export function familyOf(ext) {
   if (IMAGE_EXT.includes(ext)) return 'image';
   if (DATA_EXT.includes(ext)) return 'data';
   if (AUDIO_EXT.includes(ext)) return 'audio';
+  if (PDF_EXT.includes(ext)) return 'pdf';
+  if (OFFICE_EXT.includes(ext)) return 'office';
+  if (EBOOK_EXT.includes(ext)) return 'ebook';
+  if (MODEL_EXT.includes(ext)) return 'model';
   return '';
 }
 
 export function targetsFor(ext) {
   if (IMAGE_EXT.includes(ext)) return IMAGE_TARGETS.filter((x) => x !== ext);
-  if (ext === 'json') return ['csv', 'txt'];
-  if (ext === 'csv') return ['json', 'txt'];
+  if (ext === 'json') return ['csv', 'txt', 'xlsx'];
+  if (ext === 'csv') return ['json', 'txt', 'xlsx'];
   if (ext === 'md') return ['html', 'txt'];
   if (ext === 'txt') return ['html'];
   if (ext === 'html') return ['txt'];
   if (AUDIO_EXT.includes(ext)) return ['wav'];
+  if (ext === 'pdf') return ['txt', 'png', 'jpg'];
+  if (ext === 'docx') return ['html', 'txt'];
+  if (ext === 'xlsx' || ext === 'xls') return ['csv', 'json', 'html'];
+  if (ext === 'pptx') return ['txt'];
+  if (ext === 'epub') return ['html', 'txt'];
+  if (ext === 'stl') return ['obj'];
+  if (ext === 'obj') return ['stl'];
   return [];
 }
+
+export const ROUTE_COUNT = Array.from(new Set([
+  ...IMAGE_EXT, ...DATA_EXT, ...AUDIO_EXT,
+  ...PDF_EXT, ...OFFICE_EXT, ...EBOOK_EXT, ...MODEL_EXT,
+].map(extOf))).reduce((sum, ext) => sum + targetsFor(ext).length, 0);
 
 export function defaultTarget(ext) {
   const targets = targetsFor(ext);

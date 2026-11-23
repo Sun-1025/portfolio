@@ -1,13 +1,27 @@
 /* 文件转换台：浏览器内转换，不上传文件。 */
 import {
-  MATRIX, extOf, familyOf, targetsFor, imageTargetFor, formatBytes,
+  MATRIX, ROUTE_COUNT, extOf, familyOf, targetsFor, imageTargetFor, formatBytes,
   convertDataText, wavBlobFromAudioBuffer,
 } from './convert-core.js';
+import {
+  pdfToText, pdfToImages, imageToPdf, docxConvert, xlsxConvert, dataToXlsx,
+  pptxToText, epubConvert, modelConvert,
+} from './docs-core.js';
 
-const MAX_BYTES = { image: 60 * 1024 * 1024, data: 10 * 1024 * 1024, audio: 80 * 1024 * 1024 };
+const MAX_BYTES = {
+  image: 60 * 1024 * 1024,
+  data: 10 * 1024 * 1024,
+  audio: 80 * 1024 * 1024,
+  pdf: 80 * 1024 * 1024,
+  office: 40 * 1024 * 1024,
+  ebook: 40 * 1024 * 1024,
+  model: 40 * 1024 * 1024,
+};
 const HISTORY_KEY = 'szh.converter.history.v1';
-const ROUTE_COUNT = MATRIX.reduce((sum, row) => sum + row.targets.length, 0);
-const FAMILY_LABEL = { image: '图片', data: '数据 / 文档', audio: '音频' };
+const FAMILY_LABEL = {
+  image: '图片', data: '数据 / 文档', audio: '音频',
+  pdf: 'PDF', office: 'Office', ebook: '电子书', model: '3D 模型',
+};
 
 const state = {
   items: [],
@@ -257,26 +271,61 @@ async function convertItem(item) {
   await sleep(60);
   try {
     let blob;
-    if (item.family === 'image') blob = await convertImage(item);
-    else if (item.family === 'audio') blob = await convertAudio(item);
-    else if (item.family === 'data') {
-      const text = await readFileAsText(item.file);
-      const result = convertDataText(text, item.ext, item.target);
-      blob = new Blob([result.content], { type: result.mime });
+    let outExt = item.target;
+    let note = '';
+    if (item.family === 'image') {
+      if (item.target === 'pdf') {
+        const result = await imageToPdf(item.file);
+        blob = result.blob;
+        outExt = result.ext;
+      } else {
+        blob = await convertImage(item);
+      }
+    } else if (item.family === 'audio') {
+      blob = await convertAudio(item);
+    } else if (item.family === 'data') {
+      if (item.target === 'xlsx') {
+        const result = await dataToXlsx(item.file, item.ext);
+        blob = result.blob;
+        outExt = result.ext;
+      } else {
+        const text = await readFileAsText(item.file);
+        const result = convertDataText(text, item.ext, item.target);
+        blob = new Blob([result.content], { type: result.mime });
+      }
+    } else if (item.family === 'pdf') {
+      const result = item.target === 'txt' ? await pdfToText(item.file) : await pdfToImages(item.file, item.target);
+      blob = result.blob;
+      outExt = result.ext;
+      note = result.note || '';
+    } else if (item.family === 'office') {
+      const result = item.ext === 'docx' ? await docxConvert(item.file, item.target)
+        : (item.ext === 'xlsx' || item.ext === 'xls') ? await xlsxConvert(item.file, item.target)
+          : await pptxToText(item.file);
+      blob = result.blob;
+      outExt = result.ext;
+    } else if (item.family === 'ebook') {
+      const result = await epubConvert(item.file, item.target);
+      blob = result.blob;
+      outExt = result.ext;
+    } else if (item.family === 'model') {
+      const result = await modelConvert(item.file, item.ext, item.target);
+      blob = result.blob;
+      outExt = result.ext;
     } else throw new Error('暂不支持该文件类型');
     item.resultBlob = blob;
-    item.resultName = `${baseName(item.file.name)}.${item.target}`;
+    item.resultName = `${baseName(item.file.name)}.${outExt}`;
     item.status = 'done';
     state.history.unshift({
       name: item.file.name,
       from: fileExtLabel(item.ext),
-      to: fileExtLabel(item.target),
+      to: fileExtLabel(outExt),
       size: blob.size,
       time: Date.now(),
     });
     state.history = state.history.slice(0, 8);
     saveHistory();
-    toastFn(`${item.file.name} 已转换为 ${fileExtLabel(item.target)}`);
+    toastFn(`${item.file.name} 已转换为 ${fileExtLabel(outExt)}${note ? `（${note}）` : ''}`);
   } catch (err) {
     item.status = 'error';
     item.error = err?.message || '转换失败';
@@ -406,10 +455,14 @@ export function render(root, ctx = {}) {
       <div class="conv-filters" id="convFilters" role="group" aria-label="转换分类">
         <button type="button" class="conv-filter is-active" data-family="all">全部</button>
         <button type="button" class="conv-filter" data-family="image">图片</button>
-        <button type="button" class="conv-filter" data-family="data">数据 / 文档</button>
+        <button type="button" class="conv-filter" data-family="data">数据</button>
         <button type="button" class="conv-filter" data-family="audio">音频</button>
+        <button type="button" class="conv-filter" data-family="pdf">PDF</button>
+        <button type="button" class="conv-filter" data-family="office">Office</button>
+        <button type="button" class="conv-filter" data-family="ebook">电子书</button>
+        <button type="button" class="conv-filter" data-family="model">3D</button>
       </div>
-      <label class="conv-search"><span>SEARCH / ROUTES</span><input id="convMatrixSearch" type="search" placeholder="PNG、CSV、WAV…" autocomplete="off"></label>
+      <label class="conv-search"><span>SEARCH / ROUTES</span><input id="convMatrixSearch" type="search" placeholder="PDF、DOCX、EPUB…" autocomplete="off"></label>
       <div class="conv-matrix" id="convMatrix"></div>
       <div class="conv-matrix-count" id="convMatrixCount"></div>
       <div class="conv-quality">
@@ -418,19 +471,19 @@ export function render(root, ctx = {}) {
       </div>
       <div class="conv-history-head"><span>HISTORY / LOCAL</span><button type="button" id="convHistoryClear">清空</button></div>
       <div class="conv-history" id="convHistoryList"></div>
-      <p class="conv-note">视频、Office/PDF、电子书和 3D 模型需要本地转换引擎，当前暂不开放，也不会伪造转换结果。</p>
+      <p class="conv-note">视频转码需要 FFmpeg 引擎，当前暂不开放。Office 只做能保真的文档提取与表格转换，PDF 支持文字/图片提取，EPUB 支持 HTML/TXT，STL/OBJ 支持几何互换。</p>
     </aside>
     <main class="converter-main">
       <div class="conv-main-head">
         <div><span class="conv-eyebrow">DROP ZONE / BATCH 001</span><h3>把文件拖进来。</h3></div>
         <div class="conv-main-count"><b>${ROUTE_COUNT}</b><span>REAL ROUTES</span></div>
       </div>
-      <input class="conv-file-input" id="convFile" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.json,.csv,.md,.markdown,.txt,.html,.htm,.mp3,.ogg,.oga,.m4a,.aac,.flac">
+      <input class="conv-file-input" id="convFile" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.json,.csv,.md,.markdown,.txt,.html,.htm,.mp3,.ogg,.oga,.m4a,.aac,.flac,.pdf,.docx,.xlsx,.xls,.pptx,.epub,.stl,.obj">
       <label class="conv-drop" id="convDrop" for="convFile" tabindex="0">
         <span class="conv-drop-icon">⇣</span>
         <span class="conv-drop-title">拖入文件，或点击选择</span>
-        <span class="conv-drop-sub">PNG · JPG · WEBP · GIF · JSON · CSV · MD · TXT · HTML · MP3 · M4A · OGG · AAC · FLAC</span>
-        <span class="conv-drop-meta"><i></i>LOCAL ONLY · 图片 60MB / 数据 10MB / 音频 80MB · 不上传服务器</span>
+        <span class="conv-drop-sub">图片 · JSON / CSV / MD / TXT / HTML · 音频 · PDF · DOCX / XLSX / PPTX · EPUB · STL / OBJ</span>
+        <span class="conv-drop-meta"><i></i>LOCAL ONLY · 单文件 10–80MB · 按类型限制 · 不上传服务器</span>
       </label>
       <div class="conv-toolbar">
         <span class="conv-queue-count" id="convQueueCount">QUEUE / 00</span>
@@ -446,7 +499,7 @@ export function render(root, ctx = {}) {
       <div class="conv-empty" id="convEmpty">
         <span class="conv-empty-mark">∅</span>
         <b>队列为空</b>
-        <span>拖入文件后会出现在这里。图片、数据、文档和音频都在本机处理。</span>
+        <span>拖入文件后会出现在这里。图片、数据、PDF、Office、电子书和 3D 都在本机处理。</span>
       </div>
       <div class="conv-footnote"><span>NO SERVER / NO UPLOAD</span><span>BYTECRAFT / 2026</span></div>
     </main>

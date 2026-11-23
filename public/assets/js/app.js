@@ -460,7 +460,7 @@ function renderTools() {
     </div>
     <div class="tools-status-strip">
       <span class="tools-status-live"><i></i>LOCAL ENGINE / READY</span>
-      <span><b>18</b> REAL ROUTES</span>
+      <span><b>${Number(tools.routes) || 44}</b> REAL ROUTES</span>
       <span><b>${list.length}</b> ACTIVE MODULES</span>
       <span class="tools-status-right">NO SERVER / NO UPLOAD</span>
     </div>
@@ -474,7 +474,7 @@ function renderTools() {
       </div>
     </div>
     <div class="tool-grid">${cards || '<p class="case-empty">工具正在整理。</p>'}</div>
-    <p class="hint" style="margin-top:22px">当前开放：图片、数据、文档、音频转换。视频、Office/PDF、电子书和 3D 模型需要本地转换引擎，暂不开放；不会伪造转换成功。</p>
+    <p class="hint" style="margin-top:22px">当前开放：图片、数据、文档、音频、PDF、Office、电子书与 3D 几何转换。视频转码与扫描件 OCR 暂不开放；不会伪造转换成功。</p>
   </section>`;
 }
 

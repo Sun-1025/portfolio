@@ -1,5 +1,20 @@
 # 更新记录
 
+## 3.2.0 — 2026-11-23（PDF / Office / 电子书 / 3D 扩展）
+
+- 转换台从 18 条路径扩展到 44 条：图片可转 PDF；JSON/CSV 可写 XLSX；新增 PDF、Office、EPUB、STL/OBJ 分类。
+- PDF：PDF → TXT / PNG / JPG；多页转图片自动打包 ZIP，最多 80 页；扫描件没有 OCR，只提取已有文字层。
+- Office：DOCX → HTML/TXT；XLSX/XLS → CSV/JSON/HTML；PPTX → TXT；CSV/JSON → XLSX。不提供 DOCX→PDF 版式保真转换，旧版 DOC/PPT 暂不支持。
+- 电子书：EPUB → HTML/TXT，按 OPF spine 顺序合并章节，HTML 版内嵌 EPUB 图片并移除脚本。
+- 3D：STL（ASCII/二进制）↔ OBJ，只处理三角网格几何，不保留材质。
+- PDF.js、pdf-lib、Mammoth、SheetJS、JSZip 全部放在 `public/tools/vendor`，按需加载，工具页首屏不下载。
+- 新增 `qa/test-model-core.mjs`、`qa/test-docs-ui.cjs` 和文档测试夹具生成脚本。
+
+### 验证
+
+- 浏览器批量实测 10 个文件全部完成：PDF→TXT、PDF→PNG（ZIP）、DOCX→HTML、XLSX→CSV、PPTX→TXT、EPUB→HTML、STL→OBJ、OBJ→STL、JSON→XLSX、PNG→PDF；无控制台错误。
+- `convert-core` 与 `model-core` 单元测试通过；44 条路径计数与实际扩展名映射一致。
+
 ## 3.1.0 — 2026-11-23（文件转换台）
 
 - `#/tools` 新增浏览器本地文件转换台：拖拽/选择、格式搜索、分类过滤、批量队列、目标格式选择、全部转换、下载全部、转换历史。

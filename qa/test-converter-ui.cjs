@@ -1,4 +1,6 @@
 const base = 'http://127.0.0.1:9335';
+const TARGET = process.env.CONVERTER_URL || 'http://localhost:8080/?qa=converter#/tools';
+const SHOT = process.env.CONVERTER_SHOT || 'tools-converter-batch.png';
 
 async function main() {
   const tabs = await fetch(`${base}/json/list`).then((r) => r.json());
@@ -27,7 +29,7 @@ async function main() {
   await send('Page.enable');
   await send('Network.clearBrowserCache');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
-  await send('Page.navigate', { url: 'http://localhost:8080/?qa=converter#/tools' });
+  await send('Page.navigate', { url: TARGET });
   await new Promise((resolve) => setTimeout(resolve, 4500));
 
   const result = await send('Runtime.evaluate', {
@@ -89,7 +91,7 @@ async function main() {
   const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   const fs = require('fs');
   const path = require('path');
-  fs.writeFileSync(path.join(process.cwd(), 'qa', 'tools-converter-batch.png'), Buffer.from(shot.data, 'base64'));
+  fs.writeFileSync(path.join(process.cwd(), 'qa', SHOT), Buffer.from(shot.data, 'base64'));
   ws.close();
 }
 main().catch((e) => { console.error(e); process.exit(1); });

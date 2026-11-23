@@ -602,12 +602,13 @@
   },
   "tools": {
     "title": "文件转换台",
-    "intro": "把文件拖进来，选目标格式，批量转换后直接下载。图片、数据、文档和音频都在浏览器本地处理，不上传服务器。",
+    "intro": "把文件拖进来，选目标格式，批量转换后直接下载。图片、数据、文档、音频、PDF、Office、电子书和 3D 模型都在浏览器本地处理，不上传服务器。",
+    "routes": 44,
     "items": [
       {
         "id": "converter",
         "name": "文件转换台",
-        "desc": "拖拽文件，搜索格式，批量转换成 PNG、JPG、WEBP、JSON、CSV、HTML、TXT 或 WAV。",
+        "desc": "拖拽文件，搜索格式，批量转换成图片、表格、网页、WAV、PDF、XLSX、EPUB 文字版或 OBJ/STL。",
         "category": "convert",
         "module": "converter.js",
         "icon": "⇄",
