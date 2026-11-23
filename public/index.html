@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>孙志昊 · 个人站与工具台</title>
+<meta name="description" content="孙志昊的个人网站：作品集、在线工具与实验记录。">
+<meta name="theme-color" content="#12110b">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2312110b'/><text x='32' y='44' font-size='32' text-anchor='middle' fill='%23cdd96b' font-family='Georgia'>孙</text></svg>">
+<script>
+  try {
+    var t = localStorage.getItem('pf-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<div class="paper-grain" aria-hidden="true"></div>
+
+<header class="topbar" id="topbar">
+  <a class="brand" href="#/" aria-label="返回首页">
+    <span class="brand-mark">孙</span>
+    <span class="brand-text">孙志昊<small>SUN&nbsp;ZHIHAO</small></span>
+  </a>
+  <nav class="nav" id="nav" aria-label="主导航"></nav>
+  <div class="bar-actions">
+    <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="展开导航" aria-expanded="false">☰</button>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换明暗主题" title="切换主题">◐</button>
+    <a class="icon-btn admin-link" href="/admin" aria-label="进入后台" title="后台管理">⌘</a>
+  </div>
+</header>
+
+<main class="view" id="view" aria-live="polite"></main>
+
+<footer class="foot" id="foot"></footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>

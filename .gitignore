@@ -1,29 +1,21 @@
-# ===== 原始素材（体积大，不纳入仓库，仅本地保留）=====
-assets/_raw/
-assets/hero-*
-assets/dim_full.img
-assets/portrait-dark.jpg
-assets/bg-wall.jpg
-assets/head-turn.mp4
-assets/library-shot.png
-assets/entj.png
-assets/scene-ydim.png
-
-# ===== 依赖与构建产物 =====
+# 依赖与运行产物
 node_modules/
-.netlify/
-__pycache__/
-*.pyc
-*.pyo
+dist/
+*.log
 
-# ===== 系统与编辑器 =====
+# 本地密钥与账号（重要，不要提交）
+data/users.json
+data/.jwt-secret
+data/backups/
+public/uploads/*
+!public/uploads/.gitkeep
+
+# 环境变量
+.env
+.env.local
+
+# 编辑器与系统
 .DS_Store
 Thumbs.db
-desktop.ini
 .vscode/
 .idea/
-
-# ===== 本地临时文件 =====
-*.log
-*.tmp
-~$*

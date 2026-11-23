@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /oauth-proxy/
-
-Sitemap: https://sunzhihaoai.top/sitemap.xml
