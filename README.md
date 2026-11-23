@@ -1,15 +1,19 @@
-# 孙志昊 · 个人站 3.0
+# 孙志昊 · 个人站 4.0
 
 个人主页 + 在线工具 + 可视化后台，保留原版 3D 场景页作为「经典版」。
-3.0 采用 **Signal / Control Room** 视觉方向：近黑深空底、酸性绿与冰青信号色、坐标网格、HUD 数据面板、等宽字标签与克制动效。
+
+4.0 采用 **工程仪表 + 编辑式排版**：近黑深空底、酸性信号绿与冰青信号色、72px 顶栏、六级字号层级、磨砂玻璃 3D 主视觉与克制动效。完整的设计与验收记录见 `docs/design-v4.md`、`docs/checklist-v4.md`。
+
+> **iOS 27 日间玻璃（2026-11-23）**：浅色模式新增独立覆盖层 `public/assets/css/app-ios27.css`，提供 `blur(22px)` + 低饱和白 tint + 0.5px 白内描边 + 柔和落影；深色模式不加载任何 iOS27 规则，完整保留 v4 原版。材质参数见 `docs/material-ios27-light-glass.md`，巡检记录见 `docs/audit-ios27.md`。经典版 `/classic/` 与后台 `/admin/` 未接该覆盖层。
 
 ## 视觉系统
 
-- 主色：`#060809` 近黑 / `#d7ff4f` 酸性信号绿 / `#6ff5e4` 冰青遥测色
-- 字体：Space Grotesk（标题）+ Inter（正文）+ JetBrains Mono（标签与数据）
-- 间距：以 8px 为基础节奏；卡片、面板、导航均统一圆角与边框层级
-- 原则：不超过 3 个主色；标题层级不超过 3 级；动效只用于状态反馈、信号脉冲和卡片光晕
-- 首页肖像：使用奶白底身份照 `portrait-id-cream.webp`，保留经典版 3D 动漫人物的黑发、圆框眼镜与黑色 T 恤；`/classic/` 原场景入口仍保留
+- 主色：`#070908` 近黑 / `#d6f36a` 酸性信号绿 / `#7ce9d5` 冰青遥测色；浅色 `#f1f0e7` / `#5c7900` / `#087c72`
+- 字体：IBM Plex Sans（正文与标题）+ IBM Plex Mono（标签、数据、代码）+ Noto Sans SC（中文回退）
+- 间距：以 4px 为基础节奏；卡片、面板、导航统一圆角、边框与阴影层级
+- 字号：正文 16.5–18px，导航 16.5px / 500，全站硬下限 12px；首页 Hero 为 66–82px 展示级
+- 首页主视觉：磨砂玻璃信号核心 `signal-core.webp`；三个核心项目封面为同材质 1200×800 WebP；`/classic/` 原场景入口仍保留
+- AI 助手：56×56 双主题 SVG 浮标，终端提示符 + 信号脉冲，面板 420px，移动端底部抽屉
 
 ## 快速启动
 
@@ -122,6 +126,12 @@ npm run export -- --base=/repo/   # 导出到 GitHub Pages 子路径
 ## 文档
 
 - [后台使用手册](docs/后台使用手册.md)
+- [v4 巡检记录](docs/audit-v4.md)
+- [v4 设计说明](docs/design-v4.md)
+- [v4 文案稿](docs/copy-v4.md)
+- [v4 响应式记录](docs/responsive-v4.md)
+- [v4 AI Logo 规范](docs/ai-logo-spec.md)
+- [v4 终检清单](docs/checklist-v4.md)
 - [架构说明](docs/架构说明.md)
 - [内网部署与访问加速](docs/内网部署与访问加速.md)
 - [扩展开发指南](docs/扩展开发指南.md)

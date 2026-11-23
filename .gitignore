@@ -7,6 +7,7 @@ dist/
 data/users.json
 data/.jwt-secret
 data/backups/
+data/guestbook.json
 public/uploads/*
 !public/uploads/.gitkeep
 
@@ -23,3 +24,6 @@ Thumbs.db
 # 本地视觉 QA 产物
 qa/
 .tech-backup/
+
+# 本地私密备份（不要提交）
+private/

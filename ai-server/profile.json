@@ -19,11 +19,12 @@
   "activities": ["羽毛球", "黄河口骑行", "策略游戏", "记账"],
   "contact": {
     "email": "1322816531@qq.com",
+    "qq": "1322816531",
     "github": "https://github.com/Sun-1025",
     "gitee": "https://gitee.com/SunZHAO1025",
-    "wechat": "chgh740905"
+    "wechat": "暂密"
   },
-  "contactDisplay": "邮箱 1322816531@qq.com ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 chgh740905",
+  "contactDisplay": "邮箱 1322816531@qq.com ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密",
   "limits": [
     "不编造奖项、比赛、实习、薪资、数据",
     "不知道就引导到邮箱或 GitHub/Gitee 仓库 Issue",

@@ -578,6 +578,13 @@ html[data-theme="light"] .theme-toggle .ic-sun{display:block}
 .case h3{font-size:19px;line-height:28px;font-weight:600;letter-spacing:-.01em;margin-bottom:var(--s-50);text-wrap:balance}
 .case-org{font-size:12px;line-height:16px;color:var(--ink-3);margin-bottom:var(--s-100)}
 .case-sum{font-size:14px;line-height:22px;color:var(--ink-2);text-wrap:pretty}
+.case.is-locked .case-thumb{filter:saturate(.55)}
+.case-lock{
+  display:inline-flex;align-items:center;gap:8px;margin-top:2px;padding:8px 11px;
+  border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04);
+  font-size:12px;line-height:16px;letter-spacing:.1em;color:var(--ink-3);
+}
+.case-lock svg{width:14px;height:14px;flex:0 0 auto}
 .case-tags{display:flex;flex-wrap:wrap;gap:var(--s-50);margin-top:var(--s-200)}
 .case-go{position:absolute;top:var(--s-200);right:var(--s-200);font-style:normal;font-size:14px;line-height:1;color:var(--ink-3);transition:color var(--dur-color) var(--ease),transform var(--dur-color) var(--ease)}
 .case:hover .case-go{color:var(--accent);transform:translateX(2px)}
@@ -739,6 +746,17 @@ html[data-theme="light"] .theme-toggle .ic-sun{display:block}
 .detail-sections .ds p{font-size:16px;line-height:28px;color:var(--ink-2);margin:0 0 var(--s-100);text-wrap:pretty}
 .detail-sections .ds p:last-child{margin-bottom:0}
 .detail-sections .ds.is-todo{opacity:.55}
+.detail-sections .ds.is-locked h4{margin:0 0 10px;font-size:14px;letter-spacing:.02em}
+.detail-sections .ds.is-locked .ds-lock-box{
+  display:flex;align-items:center;gap:12px;padding:16px 18px;
+  border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.04);
+}
+.detail-sections .ds.is-locked .ds-lock-icon{
+  display:grid;place-items:center;flex:0 0 auto;width:38px;height:38px;
+  border:1px solid var(--line);border-radius:50%;color:var(--ink-3);
+}
+.detail-sections .ds.is-locked .ds-lock-icon svg{width:18px;height:18px}
+.detail-sections .ds.is-locked .ds-lock-box strong{font-size:15px;font-weight:600;letter-spacing:.12em}
 .detail-result{display:none;margin-top:var(--s-300);padding-left:var(--s-200);border-left:2px solid rgba(205,217,107,.4);font-size:14px;line-height:20px;color:var(--ink);text-wrap:pretty}
 .detail-img{display:none;width:100%;height:170px;object-fit:cover;object-position:center 30%;border-radius:14px;margin-bottom:var(--s-300);border:1px solid rgba(255,255,255,.14)}
 .detail-link{
@@ -1126,95 +1144,52 @@ let DATA = {
     },
 
     /* ── 校园经历 ── */
-    {
-      key: 'campus-kexie', cat: 'campus', num: '01',
+        {
+      key: 'campus-kexie', cat: 'campus', num: '01', locked: true,
       title: '校大学生科学技术协会 · 项目管理部部长', org: '校科学技术协会 项目管理部',
       period: '2026.09 — 至今', role: '赛事统筹 · 项目管理',
-      summary: '负责校级科创赛事与学生科创项目的统筹管理：「挑战杯」等重点赛事的立项申报、过程管控与校赛举办全流程，以及校内项目孵化跟进与资源对接。',
-      tags: ['赛事统筹', '项目管理', '团队协作'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '职责范围', p: '担任校大学生科学技术协会项目管理部部长，全面负责校级科创赛事与学生科创项目的统筹管理工作。核心职责涵盖「挑战杯」等重点科创赛事的立项申报、过程管控与校赛举办全流程，同时负责校内科创项目的孵化跟进与资源对接。' },
-        { h: '管控机制与成果', p: '任职期间搭建「项目 — 节点 — 责任人」三级管控机制，把赛事筹备拆解为明确的任务节点，落实到 23 人筹备团队的每位成员，全程跟踪进度、协调问题，保障各项工作按节点高质量交付。累计统筹 6 项校级科创活动与赛事，服务 100 余人次参与，推动校内科创氛围与学生科创能力提升。' },
-        { h: '收获', p: '通过赛事组织与项目管理，熟练掌握了大型活动全流程管控方法，团队协调、任务拆解与问题解决能力都有明显提升。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     },
-    {
-      key: 'campus-qingxie', cat: 'campus', num: '02',
+        {
+      key: 'campus-qingxie', cat: 'campus', num: '02', locked: true,
       title: '校青年志愿者协会 · 组宣部部长', org: '校青年志愿者协会 组宣部',
       period: '2026.09 — 至今', role: '宣传统筹 · 活动组织',
-      summary: '统筹协会宣传推广与活动组织：拍摄记录、视频剪辑、公众号推文，打造标准化内容产出流程；累计参与 50+ 次志愿活动，服务时长超 100 小时。',
-      tags: ['新媒体', '视频剪辑', '活动统筹'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '职责范围', p: '担任校青年志愿者协会组宣部部长，统筹协会的宣传推广与活动组织工作。一方面负责宣传内容产出与新媒体运营，完成志愿活动的拍摄记录、视频剪辑与公众号推文制作，打造标准化的内容产出流程；另一方面深度参与志愿活动的策划与执行，配合各部门完成落地筹备，保障活动有序开展。' },
-        { h: '成果', p: '任职以来，累计参与 50 余次志愿活动的组织与宣传工作，服务时长超 100 小时，用内容输出助力志愿精神传播。' },
-        { h: '收获', p: '在活动统筹里练出了执行力、协作能力与多任务处理能力，也习惯了在幕后把一件事办成。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     },
 
     /* ── 兴趣爱好 ── */
-    {
-      key: 'hobby-badminton', cat: 'hobby', num: '01',
+        {
+      key: 'hobby-badminton', cat: 'hobby', num: '01', locked: true,
       title: '羽毛球', org: '日常运动 · 偏爱双打',
       period: '长期', role: '双打 · 战术协作',
-      summary: '日常核心的体育运动方式，偏爱双打对抗：享受战术协作与攻防转换，练反应也练配合。',
-      tags: ['双打', '快速反应', '团队配合'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '为什么是双打', p: '羽毛球是日常核心的体育运动方式，偏爱双打对抗场景。享受双打配合中的战术协作与攻防转换——球路要预判、站位要补位，一个人强没用，两个人有默契才有用。' },
-        { h: '带来的东西', p: '在运动中锻炼快速反应能力与团队配合意识，也通过球友交流拓展社交圈，保持积极健康的生活状态与充沛的精力。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     },
-    {
-      key: 'hobby-cycling', cat: 'hobby', num: '02',
+        {
+      key: 'hobby-cycling', cat: 'hobby', num: '02', locked: true,
       title: '骑行', org: '户外运动 · 长距离',
       period: '长期', role: '耐力 · 独处思考',
-      summary: '热爱户外骑行，享受长距离里专注当下、突破耐力极限的过程；也习惯在骑行中梳理思路。',
-      tags: ['耐力', '探索', '整理思路'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '怎么骑', p: '热爱户外骑行，享受长距离骑行中专注当下、突破耐力极限的过程。常规划城市周边与郊野骑行路线，在探索不同风景的同时磨炼耐力与意志力。' },
-        { h: '骑行的另一面', p: '也习惯在骑行的松弛状态里梳理思路、调整状态——很多想不明白的事，骑一圈回来就有答案了。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     },
-    {
-      key: 'hobby-games', cat: 'hobby', num: '03',
+        {
+      key: 'hobby-games', cat: 'hobby', num: '03', locked: true,
       title: '游戏', org: '策略 · 开放世界 · 模拟经营',
       period: '长期', role: '玩也拆玩法',
-      summary: '偏爱策略类、开放世界类与模拟经营：享受从 0 到 1 的搭建与策略博弈，也从产品设计角度拆交互逻辑。',
-      tags: ['策略', '模拟经营', '产品视角'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '喜欢什么', p: '关注各类单机与联机游戏作品，尤其偏爱策略类、开放世界类与模拟经营类游戏。享受游戏里从 0 到 1 的搭建过程与策略博弈思维。' },
-        { h: '不止是玩', p: '也会从产品设计的角度分析游戏的交互逻辑与玩法设计，把游戏里的规划思维、资源分配思维迁移到现实的项目管理与学习工作中。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     },
-    {
-      key: 'hobby-finance', cat: 'hobby', num: '04',
+        {
+      key: 'hobby-finance', cat: 'hobby', num: '04', locked: true,
       title: '理财', org: '个人财务 · 长期规划',
       period: '长期', role: '收支管理 · 资产配置',
-      summary: '关注个人财务收支管理，主动学基础理财与资产配置逻辑，习惯制定月度收支计划。',
-      tags: ['收支计划', '资产配置', '长期规划'],
-      images: [],
-      links: [],
-      sections: [
-        { h: '怎么管钱', p: '具备清晰的理财意识与长远规划思维，日常关注个人财务收支管理，主动学习基础理财知识与资产配置逻辑，习惯制定月度收支计划，合理分配生活、学习与兴趣类消费。' },
-        { h: '为什么在意', p: '通过理性的财务规划培养自己的资源分配能力与长远规划意识，养成量入为出、稳步积累的习惯——这种「把有限资源分好」的思路，做项目时同样用得上。' }
-      ]
+      summary: '', tags: [], images: [], links: [], sections: [], result: ''
     }
   ],
 
   contacts: [
     { label: '邮箱', value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' },
+    { label: 'QQ', value: '1322816531', url: 'https://wpa.qq.com/msgrd?v=3&uin=1322816531&site=qq&menu=yes' },
     { label: 'GitHub', value: 'github.com/Sun-1025', url: 'https://github.com/Sun-1025' },
     { label: 'Gitee', value: 'gitee.com/SunZHAO1025', url: 'https://gitee.com/SunZHAO1025' },
-    { label: '微信', value: 'chgh740905', url: '' }
+    { label: '微信', value: '暂密', url: '' }
   ],
 
   directions: [
@@ -1246,9 +1221,9 @@ const DETAILS = {
     desc: '物联网工程（本科）· 2025.09 — 2029.06（预计）。学校简称「山石」，英文缩写 SDIPCT，坐落于山东省东营市，是山东省唯一由独立学院转设为省属公办普通本科的高校。',
     sections: [
       { h: '大学本科 · 物联网工程', p: '山东石油化工学院 · 物联网工程（本科）\n2025.09 — 2029.06（预计）\n\n主修课程：C 语言程序设计、C++ 程序设计、数据结构、数据库原理、计算机组成原理、物联网导论。\n学业成绩：绩点 3.83 / 5.0，位列专业前 20%。\n在校职务：校大学生科学技术协会项目管理部部长、校青年志愿者协会组宣部部长。\n科创资质：「芯苗科研成长计划」首批学员。\n研究方向：嵌入式开发、物联网应用落地。' },
-      { h: '高中教育', p: '待补充材料，补齐后填入学段、职务、荣誉与核心经历。', todo: true },
-      { h: '初中教育', p: '待补充材料。', todo: true },
-      { h: '小学教育', p: '待补充材料。', todo: true }
+      { h: '高中教育', p: '', locked: true },
+      { h: '初中教育', p: '', locked: true },
+      { h: '小学教育', p: '', locked: true }
     ],
     link: { text: '访问学校官网', url: 'https://www.sdipct.edu.cn' }
   },
@@ -1674,9 +1649,11 @@ function tmplTimeline(items) {
     </div>`).join('')}</div>`;
 }
 
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/><circle cx="12" cy="15.4" r="1.3"/></svg>';
+
 function tmplCases(cat) {
   return `<div class="cases">${DATA.cases.filter(c => c.cat === cat).map(c => `
-    <article class="case" data-detail="${c.key}" tabindex="0" role="button" aria-label="${c.title}">
+    <article class="case${c.locked ? ' is-locked' : ''}" data-detail="${c.key}" tabindex="0" role="button" aria-label="${c.title}">
       <div class="case-thumb">${c.images && c.images.length
         ? `<img src="${c.images[0]}" alt="${c.title}" loading="lazy">`
         : `<span class="case-num">${c.num}</span>`}</div>
@@ -1687,8 +1664,9 @@ function tmplCases(cat) {
         </div>
         <h3>${c.title}</h3>
         <p class="case-org">${c.org}</p>
-        <p class="case-sum">${c.summary}</p>
-        <div class="case-tags">${c.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        ${c.locked
+          ? `<div class="case-lock">${LOCK_SVG}<span>暂时保密</span></div>`
+          : `<p class="case-sum">${c.summary}</p><div class="case-tags">${c.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>`}
       </div>
       <i class="case-go">›</i>
     </article>`).join('')}</div>`;
@@ -1893,7 +1871,9 @@ function openDetail(k) {
   if (!d) {
     const c = DATA.cases.find(x => x.key === k);
     if (!c) return;
-    d = { kicker: c.org, title: c.title, desc: c.summary, tags: c.tags, images: c.images, links: c.links, points: c.points, sections: c.sections, result: c.result };
+    d = c.locked
+      ? { kicker: c.org, title: c.title, desc: '', tags: [], images: c.images, links: [], points: [], sections: [{ h: '当前状态', locked: true, p: '这一页的具体内容还在整理，先把入口留在这里。' }], result: '' }
+      : { kicker: c.org, title: c.title, desc: c.summary, tags: c.tags, images: c.images, links: c.links, points: c.points, sections: c.sections, result: c.result };
   }
   const imgEl = $('#detailImg');
   if (d.img) { imgEl.src = d.img; imgEl.style.display = 'block'; }
@@ -1914,7 +1894,9 @@ function openDetail(k) {
 
   const secEl = $('#detailSections');
   const secs = d.sections || [];
-  secEl.innerHTML = secs.map(s => `<div class="ds${s.todo ? ' is-todo' : ''}"><h4>${s.h}</h4>${(s.p || '').split('\n').filter(t => t.trim()).map(t => `<p>${t}</p>`).join('')}</div>`).join('');
+  secEl.innerHTML = secs.map(s => s.locked
+    ? `<div class="ds is-locked"><h4>${s.h || ''}</h4><div class="ds-lock-box"><div class="ds-lock-icon">${LOCK_SVG}</div><strong>暂时保密</strong></div></div>`
+    : `<div class="ds${s.todo ? ' is-todo' : ''}"><h4>${s.h}</h4>${(s.p || '').split('\n').filter(t => t.trim()).map(t => `<p>${t}</p>`).join('')}</div>`).join('');
   secEl.style.display = secs.length ? 'grid' : 'none';
 
   const resEl = $('#detailResult');

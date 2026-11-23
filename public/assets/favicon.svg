@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#070908"/>
+  <rect x="8" y="8" width="48" height="48" rx="5" fill="none" stroke="#d6f36a" stroke-width="1.5" stroke-opacity=".8"/>
+  <path d="M14 22h36M14 31h22M14 40h28" fill="none" stroke="#d6f36a" stroke-width="2" stroke-linecap="round" stroke-opacity=".38"/>
+  <text x="32" y="43" text-anchor="middle" fill="#f1f4eb" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="600">孙</text>
+  <circle cx="49" cy="15" r="3" fill="#7ce9d5"/>
+</svg>

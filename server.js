@@ -11,6 +11,7 @@ const cookieParser = require('cookie-parser');
 const store = require('./src/store');
 const authRoutes = require('./src/routes/auth');
 const contentRoutes = require('./src/routes/content');
+const guestbookRoutes = require('./src/routes/guestbook');
 const uploadRoutes = require('./src/routes/upload');
 const eventRoutes = require('./src/routes/events');
 
@@ -67,6 +68,7 @@ app.use('/classic', express.static(path.join(PUBLIC, 'classic'), { maxAge: '1h' 
 app.get('/api/health', (req, res) => res.json({ ok: true, uptime: process.uptime(), version: '2.0.0' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', uploadRoutes);
+app.use('/api', guestbookRoutes);
 app.use('/api', contentRoutes);
 app.use('/api', eventRoutes);
 

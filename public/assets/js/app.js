@@ -34,6 +34,12 @@ function safeUrl(url) {
   return '#';
 }
 
+const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4.2" y="10.2" width="15.6" height="10.6" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.6"></rect><path d="M8 10.2V7.2a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.6"></path><circle cx="12" cy="15.5" r="1.2" fill="currentColor"></circle></svg>';
+
+function lockCard(label = '暂时保密') {
+  return `<div class="lock-card"><span class="lock-card-icon">${LOCK_SVG}</span><span class="lock-card-copy"><strong>${esc(label)}</strong></span></div>`;
+}
+
 function inlineMd(text) {
   return esc(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -108,11 +114,11 @@ function applyTheme(theme) {
   try { localStorage.setItem('pf-theme', theme); } catch (err) { /* ignore */ }
   const btn = $('#themeBtn');
   if (btn) {
-    btn.textContent = theme === 'dark' ? '☀' : '☾';
+    btn.dataset.mode = theme;
     btn.setAttribute('aria-label', theme === 'dark' ? '切换到浅色' : '切换到深色');
   }
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', theme === 'dark' ? '#060809' : '#eff2e8');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#070908' : '#f1f0e7');
 }
 
 /* ---------------- 数据 ---------------- */
@@ -196,26 +202,27 @@ function renderStats() {
   `).join('')}</div></div>`;
 }
 
+function projectCover(c) {
+  if (c.cover) {
+    return `<img src="${safeUrl(c.cover)}" alt="${esc(c.title)} 项目封面" loading="lazy" decoding="async">`;
+  }
+  return `<div class="cover-fallback"><span>${esc(c.number || '')}</span><b>${esc((CAT_LABEL[c.category] || 'CASE').slice(0, 1))}</b></div>`;
+}
+
 function renderHome() {
   const home = state.data.home;
   const hero = home.hero || {};
-  const facts = (home.about && home.about.facts) || [];
+  const about = home.about || {};
+  const facts = about.facts || [];
   const loc = facts.find((f) => f.k === '所在地');
   const dir = facts.find((f) => f.k === '主攻方向');
-  const about = home.about || {};
   const focus = dir ? String(dir.v || '').split(/[、/]/)[0].trim() : 'EMBEDDED';
+  const cases = (state.data.work && state.data.work.cases) || [];
 
   const titleHtml = String(hero.title || '').split('\n').map((line) =>
-    `<span class="hero-line">${esc(line)}</span>`
+    `<span class="hero-line">${esc(line).replace('能跑', '<em>能跑</em>')}</span>`
   ).join('');
   const heroIntro = String(hero.intro || '').trim();
-
-  const abilities = (about.abilities || []).map((a, i) => `
-    <article class="ability reveal">
-      <span class="ability-no">0${i + 1}</span>
-      <h3>${esc(a.t)}</h3>
-      <p>${esc(a.d)}</p>
-    </article>`).join('');
 
   const factsHtml = facts.map((f) => `
     <div class="fact"><dt>${esc(f.k)}</dt><dd>${esc(f.v)}</dd></div>`).join('');
@@ -228,16 +235,69 @@ function renderHome() {
 
   const contacts = (home.contacts || []).map((c) => {
     const label = `<span class="skill">${esc(c.label)} · ${esc(c.value)}</span>`;
-    return c.url ? `<a href="${safeUrl(c.url)}" style="text-decoration:none">${label}</a>` : label;
+    return c.url ? `<a href="${safeUrl(c.url)}" class="skill-link">${label}</a>` : label;
   }).join('');
+
+  const abilities = (about.abilities || []).map((a, i) => `
+    <details class="ability-fold">
+      <summary><span class="ability-no">0${i + 1}</span><span>${esc(a.t)}</span><b>+</b></summary>
+      <p>${esc(a.d)}</p>
+    </details>`).join('');
+
+  const selected = (home.selectedIds || [])
+    .map((id) => cases.find((c) => c.id === id))
+    .filter(Boolean);
+  const projectRows = selected.map((c, i) => `
+    <a class="project-row reveal" href="#/work/${esc(c.id)}">
+      <div class="project-media">
+        ${projectCover(c)}
+        <span class="project-no">${String(i + 1).padStart(2, '0')}</span>
+      </div>
+      <div class="project-copy">
+        <span class="project-meta">${esc(CAT_LABEL[c.category] || c.category || '项目')} / ${esc(c.period || '')}</span>
+        <h3 class="project-title">${esc(c.title)}</h3>
+        <p class="project-summary">${esc(c.summary)}</p>
+        <div class="case-tags">${(c.tags || []).slice(0, 4).map((t) => `<span class="case-tag">${esc(t)}</span>`).join('')}</div>
+      </div>
+      <span class="project-arrow" aria-hidden="true">↗</span>
+    </a>`).join('');
+
+  const practiceRows = (home.practice || []).map((p, i) => `
+    <article class="practice-item reveal">
+      <div class="practice-meta"><span>P.0${i + 1}</span><span>${esc(p.period || '')}</span></div>
+      <h3>${esc(p.label || '')}</h3>
+      <p class="practice-org">${esc(p.org || '')}</p>
+      <p class="practice-summary">${esc(p.summary || '')}</p>
+      <span class="practice-role">${esc(p.role || '')}</span>
+    </article>`).join('');
+
+  const hobbyRows = (home.hobbies || []).map((h) => `
+    <article class="hobby-row reveal">
+      <span class="hobby-no">${esc(h.no || '')}</span>
+      <div class="hobby-copy">
+        <div class="hobby-head"><h3>${esc(h.title || '')}</h3><span>${h.locked ? '' : esc(h.meta || '')}</span></div>
+        ${h.locked ? `<div class="hobby-locked">${LOCK_SVG}<span>暂时保密</span></div>` : `<p>${esc(h.text || '')}</p>`}
+      </div>
+    </article>`).join('');
+
+  const principles = (home.principles || []).map((p, i) => `
+    <div class="principle-item">
+      <span class="principle-no">0${i + 1} / ${esc(p.label || '')}</span>
+      <h3>${esc(p.title || '')}</h3>
+      <p>${esc(p.text || '')}</p>
+    </div>`).join('');
+
+  const lines = about.lines || [];
+  const shownLines = lines.slice(0, 4);
+  const restLines = lines.slice(4);
 
   return `
   <section class="hero wrap">
     <div class="hero-copy">
       <div class="eyebrow">
-        <span class="eyebrow-index">00</span>
+        <span class="eyebrow-index">SZH / 001</span>
         <span class="eyebrow-text">${esc(hero.eyebrow || state.data.site.tagline)}</span>
-        <span class="live"><i></i>LIVE&nbsp;/&nbsp;2026</span>
+        <span class="live"><i></i>OPEN&nbsp;TO&nbsp;INTERNSHIP</span>
       </div>
       <h1 class="hero-title">${titleHtml}</h1>
       ${heroIntro ? `<p class="hero-intro">${esc(heroIntro)}</p>` : ''}
@@ -248,56 +308,99 @@ function renderHome() {
       <div class="hero-meta">
         ${loc ? `<span><i></i>${esc(loc.v)}</span>` : ''}
         ${dir ? `<span><i></i>${esc(dir.v)}</span>` : ''}
-        <span><i></i>Open to internship</span>
+        <span><i></i>2025 级 · 大二</span>
       </div>
       <div class="hero-terminal" aria-hidden="true">
         <div class="terminal-head"><span>PROFILE.LOG</span><span>REV&nbsp;2026.11</span></div>
-        <div class="terminal-line"><span class="prompt">~/sunzhihao</span><span class="cmd">$</span><span>build --focus embedded, ai, interface</span><span class="caret"></span></div>
+        <div class="terminal-line"><span class="prompt">~/sunzhihao</span><span class="cmd">$</span><span>build --focus embedded, iot, ai</span><span class="caret"></span></div>
+        <div class="terminal-line terminal-line--muted"><span class="prompt">output</span><span class="cmd">›</span><span>3 projects / 99 routes / open to internship</span></div>
       </div>
     </div>
-    <aside class="hero-console" aria-label="个人档案终端">
+    <aside class="hero-console" aria-label="个人档案与信号核心">
       <div class="console-head">
-        <span>PROFILE&nbsp;/&nbsp;001</span>
+        <span>SIGNAL&nbsp;/&nbsp;CORE</span>
         <span class="console-status"><i></i>ONLINE</span>
       </div>
-      <div class="portrait-stage">
-        <span class="hero-orbit" aria-hidden="true"></span>
-        <figure class="hero-figure">
-          <div class="portrait-frame"><img src="${safeUrl(state.data.site.avatar)}" alt="孙志昊 · 奶白底身份照" fetchpriority="high" decoding="async"></div>
-          <figcaption><span>IDENTITY&nbsp;/&nbsp;2026</span><span>DONGYING</span></figcaption>
-        </figure>
+      <div class="signal-stage">
+        <img class="signal-core" src="${safeUrl(hero.visual || '/assets/signal-core.webp')}" alt="磨砂玻璃信号核心视觉" fetchpriority="high" decoding="async">
+        <span class="signal-scan" aria-hidden="true"></span>
+        <span class="signal-corner signal-corner--tl" aria-hidden="true"></span>
+        <span class="signal-corner signal-corner--br" aria-hidden="true"></span>
+        <div class="signal-caption"><span>SZH&nbsp;/&nbsp;001</span><span>EMBEDDED&nbsp;·&nbsp;IOT</span></div>
       </div>
       <div class="console-readout">
-        <div><span>SIGNAL</span><b class="signal">98.4</b></div>
-        <div><span>FOCUS</span><b>${esc(focus)}</b></div>
+        <div><span>BUILD</span><b class="mono">2026.11</b></div>
+        <div><span>FOCUS</span><b>${esc(focus)} / 端侧</b></div>
         <div><span>LOCAL</span><b class="mono" id="localTime">--:--:--</b></div>
       </div>
     </aside>
   </section>
 
-  ${renderTicker()}
   ${renderStats()}
-  ${renderNotice()}
+
+  <section class="section section--work" id="work">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="section-no">02 / SELECTED WORK</span>
+        <div>
+          <h2 class="section-title">三个做过的项目</h2>
+          <p class="section-lead">先挑三件能说清楚的事：一个从声音到告警的链路，一套自己写完的图书系统，一门给小学生上的物理课。</p>
+        </div>
+      </div>
+      <div class="project-index">${projectRows}</div>
+      <div class="section-foot">
+        <a class="text-link" href="#/work">查看全部项目 <span>↗</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--practice" id="practice">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="section-no">03 / FIELD NOTES</span>
+        <div>
+          <h2 class="section-title">实践记录</h2>
+          <p class="section-lead">校内预备实习、独立开发和图书馆公益课。不是头衔清单，是三种把方案落到地上的方式。</p>
+        </div>
+      </div>
+      <div class="practice-layout">
+        <div class="practice-list">${practiceRows}</div>
+        <aside class="practice-note">
+          <span class="mini-label">WORKING PRINCIPLE</span>
+          <h3>先交付一个能验证的版本，再谈把它做漂亮。</h3>
+          <p>项目申报、系统开发和公益课都按这个顺序走。能跑、能讲、能被别人复核，才算往前走了一步。</p>
+          <a class="text-link" href="#/work/case-physics">看公益课记录 <span>↗</span></a>
+        </aside>
+      </div>
+    </div>
+  </section>
 
   <section class="section" id="about">
     <div class="wrap">
       <div class="section-head">
-        <span class="section-no">01 / ABOUT</span>
+        <span class="section-no">04 / ABOUT</span>
         <div>
           <h2 class="section-title">${esc(about.title || '关于我')}</h2>
           <p class="section-lead">${esc(about.lead || '')}</p>
         </div>
       </div>
       <div class="about-grid">
-        <div class="prose reveal">
-          ${(about.lines || []).map((l) => `<p>${esc(l)}</p>`).join('')}
-          <p class="sub-title">个人理念</p>
-          <div class="belief">
-            ${((about.belief && about.belief.lines) || []).map((l) => `<p>${esc(l)}</p>`).join('')}
+        <div class="about-main">
+          <div class="prose reveal">
+            ${shownLines.map((l) => `<p>${esc(l)}</p>`).join('')}
+          </div>
+          ${restLines.length ? `<details class="about-archive">
+            <summary>展开完整自述 <span>${restLines.length} 段</span><b>+</b></summary>
+            <div class="prose prose--archive">${restLines.map((l) => `<p>${esc(l)}</p>`).join('')}</div>
+          </details>` : ''}
+          <div class="belief-block reveal">
+            <span class="mini-label">PERSONAL CREED</span>
             ${about.belief && about.belief.quote ? `<blockquote class="quote">${esc(about.belief.quote)}</blockquote>` : ''}
           </div>
-          <p class="sub-title">未来方向</p>
-          <div class="future">${future}</div>
+          ${future ? `<details class="about-archive">
+            <summary>未来方向 <span>3 个阶段</span><b>+</b></summary>
+            <div class="future">${future}</div>
+          </details>` : ''}
         </div>
         <aside class="about-side reveal">
           <div class="side-panel">
@@ -310,7 +413,26 @@ function renderHome() {
           <div class="skills">${skills}</div>
           <p class="sub-title">联系 <span>/ CONTACT</span></p>
           <div class="skills">${contacts}</div>
-          <p class="contact-note">仓库开 Issue 也能联系。</p>
+          <p class="contact-note">GitHub、Gitee 仓库开 Issue 也能联系。</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--offclock" id="offclock">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="section-no">05 / OFF CLOCK</span>
+        <div>
+          <h2 class="section-title">离开工位以后</h2>
+          <p class="section-lead">骑车、打球、玩游戏、记账。做事的方法也藏在这些习惯里。</p>
+        </div>
+      </div>
+      <div class="offclock-layout">
+        <div class="hobby-list">${hobbyRows}</div>
+        <aside class="principles-panel">
+          <span class="mini-label">WORKING NOTES</span>
+          ${principles}
         </aside>
       </div>
     </div>
@@ -318,6 +440,25 @@ function renderHome() {
 }
 
 /* ---------------- 视图：项目 ---------------- */
+function caseCardHtml(c, index = 0) {
+  const locked = Boolean(c.locked);
+  return `
+    <a class="case-card${index === 0 ? ' case-card--wide' : ''}${locked ? ' case-card--locked' : ''} reveal" href="#/work/${esc(c.id)}">
+      <div class="case-cover">${projectCover(c)}</div>
+      <div class="case-content">
+        <div class="case-top">
+          <span>${esc(c.number || '')}</span>
+          <span class="case-cat">${esc(CAT_LABEL[c.category] || c.category || '')}</span>
+        </div>
+        <h3 class="case-title">${esc(c.title)}</h3>
+        ${locked
+          ? `<div class="case-locked">${LOCK_SVG}<span>暂时保密</span></div>`
+          : `<p class="case-summary">${esc(c.summary)}</p><div class="case-tags">${(c.tags || []).slice(0, 4).map((t) => `<span class="case-tag">${esc(t)}</span>`).join('')}</div>`}
+        <span class="case-arrow" aria-hidden="true">↗</span>
+      </div>
+    </a>`;
+}
+
 function renderWork() {
   const work = state.data.work;
   const cases = work.cases || [];
@@ -328,17 +469,7 @@ function renderWork() {
   }).join('');
 
   const visible = cases.filter((c) => state.filter === 'all' || c.category === state.filter);
-  const cards = visible.map((c) => `
-    <a class="case-card reveal" href="#/work/${esc(c.id)}">
-      <div class="case-top">
-        <span>${esc(c.number || '')}</span>
-        <span class="case-cat">${esc(CAT_LABEL[c.category] || c.category || '')}</span>
-      </div>
-      <h3 class="case-title">${esc(c.title)}</h3>
-      <p class="case-summary">${esc(c.summary)}</p>
-      <div class="case-tags">${(c.tags || []).slice(0, 4).map((t) => `<span class="case-tag">${esc(t)}</span>`).join('')}</div>
-      <span class="case-arrow">↗</span>
-    </a>`).join('');
+  const cards = visible.map((c, i) => caseCardHtml(c, i)).join('');
 
   return `
   <section class="detail wrap" style="padding-bottom:0">
@@ -369,14 +500,7 @@ function bindWorkFilters() {
     $$('.filter', box).forEach((b) => b.classList.toggle('is-active', b === btn));
     const work = state.data.work;
     const cases = (work.cases || []).filter((c) => state.filter === 'all' || c.category === state.filter);
-    $('#caseGrid').innerHTML = cases.map((c) => `
-      <a class="case-card reveal" href="#/work/${esc(c.id)}">
-        <div class="case-top"><span>${esc(c.number || '')}</span><span class="case-cat">${esc(CAT_LABEL[c.category] || '')}</span></div>
-        <h3 class="case-title">${esc(c.title)}</h3>
-        <p class="case-summary">${esc(c.summary)}</p>
-        <div class="case-tags">${(c.tags || []).slice(0, 4).map((t) => `<span class="case-tag">${esc(t)}</span>`).join('')}</div>
-        <span class="case-arrow">↗</span>
-      </a>`).join('') || '<p class="case-empty">这个分类下还没有内容。</p>';
+    $('#caseGrid').innerHTML = cases.map((c, i) => caseCardHtml(c, i)).join('') || '<p class="case-empty">这个分类下还没有内容。</p>';
     const count = $('#workCount');
     if (count) count.textContent = `${cases.length} RECORDS`;
     const label = $('#workFilterLabel');
@@ -389,6 +513,16 @@ function renderCase(id) {
   const c = (state.data.work.cases || []).find((x) => x.id === id);
   if (!c) return `<section class="detail wrap"><a class="back" href="#/work">← 返回项目</a><h1 class="detail-title">内容不存在</h1></section>`;
 
+  if (c.locked) {
+    return `
+    <section class="detail wrap">
+      <a class="back" href="#/work">← 返回项目</a>
+      <div class="detail-kicker">${esc(CAT_LABEL[c.category] || 'CASE')} · ${esc(c.number || '')}</div>
+      <h1 class="detail-title">${esc(c.title)}</h1>
+      ${lockCard('暂时保密')}
+    </section>`;
+  }
+
   const sections = (c.sections || []).map((s) => `<h3>${esc(s.h)}</h3><p>${esc(s.p)}</p>`).join('');
   const images = (c.images || []).map((src) => `<img src="${safeUrl(src)}" alt="${esc(c.title)}" loading="lazy" decoding="async">`).join('');
   const tags = (c.tags || []).map((t) => `<span class="skill">${esc(t)}</span>`).join('');
@@ -400,6 +534,7 @@ function renderCase(id) {
     <div class="detail-kicker">${esc(CAT_LABEL[c.category] || '')} · ${esc(c.number || '')}</div>
     <h1 class="detail-title">${esc(c.title)}</h1>
     <p class="detail-summary">${esc(c.summary)}</p>
+    ${c.cover ? `<figure class="detail-cover"><img src="${safeUrl(c.cover)}" alt="${esc(c.title)} 项目封面" fetchpriority="high" decoding="async"><span>${esc(CAT_LABEL[c.category] || 'CASE')} / ${esc(c.number || '')}</span></figure>` : ''}
     <dl class="detail-meta">
       <div><dt>归属</dt><dd>${esc(c.org || '—')}</dd></div>
       <div><dt>时间</dt><dd>${esc(c.period || '—')}</dd></div>
@@ -529,7 +664,7 @@ function renderFoot() {
   }).join('');
   const adminLink = state.source === 'api' ? '<a href="/admin">后台管理</a>' : '';
   return `<div class="wrap">
-    <div class="foot-kicker"><span>04 / CONTACT</span><span>RESPONSE &lt; 24H</span></div>
+    <div class="foot-kicker"><span>06 / CONTACT</span><span class="foot-status"><i></i>OPEN TO INTERNSHIP</span></div>
     <div class="foot-top">
       <div>
         <h2 class="foot-title">有想法，<br>随时<em>聊。</em></h2>
@@ -537,9 +672,37 @@ function renderFoot() {
       </div>
       <div class="foot-contact-list">
         ${contactItems}
-        <p class="foot-issue">GitHub、Gitee 仓库开 Issue 也能联系。</p>
+        <p class="foot-issue">邮件通常回得最快。GitHub、Gitee 仓库开 Issue 也能联系。</p>
       </div>
     </div>
+    <section class="foot-guest" id="guestbook" aria-labelledby="guestbookTitle">
+      <div class="foot-guest-head">
+        <div>
+          <span class="mini-label">GUESTBOOK / ANON</span>
+          <h3 id="guestbookTitle">留一句，匿名也行。</h3>
+          <p id="guestMode">不用登录。留个昵称，把想说的话写下来。</p>
+        </div>
+        <span class="foot-guest-count" id="guestCount" hidden></span>
+      </div>
+      <form class="guest-form" id="guestForm" novalidate>
+        <div class="guest-field guest-field--name">
+          <label for="guestName">昵称</label>
+          <input id="guestName" name="nickname" maxlength="20" autocomplete="nickname" placeholder="随便取一个" required>
+        </div>
+        <div class="guest-field guest-field--text">
+          <label for="guestText">留言</label>
+          <textarea id="guestText" name="text" maxlength="500" rows="4" placeholder="想说的话，最多 500 字。" required></textarea>
+        </div>
+        <div class="guest-honeypot" aria-hidden="true">
+          <label>网站<input name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="guest-actions">
+          <span class="guest-hint" id="guestHint">留个昵称就能写，不需要登录。</span>
+          <button type="submit" class="btn btn--solid" id="guestSubmit">发送留言 <span class="arrow">→</span></button>
+        </div>
+      </form>
+      <div class="guest-list" id="guestList" hidden></div>
+    </section>
     <div class="foot-links foot-links--meta">
       ${adminLink}
       <a href="/classic/">经典版 ↗</a>
@@ -547,9 +710,150 @@ function renderFoot() {
     </div>
     <div class="foot-bottom">
       <span>${esc(state.data.site.footer || '')}</span>
-      <span>VANILLA&nbsp;JS&nbsp;/&nbsp;SIGNAL&nbsp;UI</span>
+      <span>BUILD&nbsp;4.0&nbsp;/&nbsp;2026.11</span>
     </div>
   </div>`;
+}
+
+/* ---------------- 页脚留言 ---------------- */
+function guestbookEndpoint() {
+  const configured = String(window.SZH_GUESTBOOK_ENDPOINT || '').trim();
+  if (configured) return configured.replace(/\/+$/, '');
+  return state.source === 'api' ? '/api/guestbook' : '';
+}
+
+function guestbookEmail() {
+  const contact = (state.data.home.contacts || []).find((c) => (c.label || '').includes('邮箱'));
+  return (contact && contact.value) || '1322816531@qq.com';
+}
+
+function guestTime(iso) {
+  try {
+    return new Intl.DateTimeFormat('zh-CN', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    }).format(new Date(iso));
+  } catch (err) {
+    return '';
+  }
+}
+
+function guestMessageHtml(item) {
+  return `<article class="guest-item"><div class="guest-item-head"><strong>${esc(item.nickname || '匿名')}</strong><time>${esc(guestTime(item.at))}</time></div><p>${esc(item.text || '')}</p></article>`;
+}
+
+function guestMailto(nickname, text, hint) {
+  const email = guestbookEmail();
+  const subject = `网站留言 · ${nickname}`;
+  const body = `昵称：${nickname}\n\n${text}\n\n（来自 sunzhihaoai.top 留言框）`;
+  const href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = href;
+  if (hint) hint.textContent = `已打开邮件应用。如果没有反应，复制这段内容发到 ${email}。`;
+  toast('已打开邮件应用');
+}
+
+async function refreshGuestbook(list, count, hint) {
+  const endpoint = guestbookEndpoint();
+  if (!endpoint) return;
+  try {
+    const res = await fetch(endpoint, { cache: 'no-store' });
+    if (!res.ok) throw new Error('guestbook unavailable');
+    const data = await res.json();
+    const items = data.items || [];
+    count.hidden = false;
+    count.textContent = `${items.length} 条`;
+    if (!items.length) {
+      list.hidden = false;
+      list.innerHTML = '<p class="guest-empty">还没有留言，来做第一个。</p>';
+      return;
+    }
+    list.hidden = false;
+    list.innerHTML = items.map(guestMessageHtml).join('');
+  } catch (err) {
+    hint.textContent = `留言服务暂时不可用；提交时会改为发到 ${guestbookEmail()}。`;
+  }
+}
+
+function bindGuestbook() {
+  const form = $('#guestForm');
+  if (!form) return;
+  const name = $('#guestName');
+  const text = $('#guestText');
+  const hint = $('#guestHint');
+  const submit = $('#guestSubmit');
+  const list = $('#guestList');
+  const count = $('#guestCount');
+  const endpoint = guestbookEndpoint();
+
+  try {
+    name.value = localStorage.getItem('pf-guest-name') || '';
+  } catch (err) { /* localStorage disabled */ }
+
+  if (endpoint) {
+    hint.textContent = '留言会公开显示在下方，不用登录。';
+    refreshGuestbook(list, count, hint);
+  } else {
+    hint.textContent = `静态站点：提交后会打开邮件应用，把留言发到 ${guestbookEmail()}。`;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const nickname = String(name.value || '').trim();
+    const message = String(text.value || '').trim();
+    if (!nickname) {
+      toast('先留一个昵称。');
+      name.focus();
+      return;
+    }
+    if (!message) {
+      toast('留言内容不能为空。');
+      text.focus();
+      return;
+    }
+
+    try {
+      localStorage.setItem('pf-guest-name', nickname);
+    } catch (err) { /* ignore */ }
+
+    if (!endpoint) {
+      guestMailto(nickname, message, hint);
+      return;
+    }
+
+    submit.disabled = true;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickname,
+          text: message,
+          website: String(form.querySelector('[name="website"]')?.value || '')
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '发送失败');
+      form.reset();
+      name.value = nickname;
+      if (list) {
+        list.hidden = false;
+        const empty = list.querySelector('.guest-empty');
+        if (empty) empty.remove();
+        list.insertAdjacentHTML('afterbegin', guestMessageHtml(data.item || { nickname, text: message, at: new Date().toISOString() }));
+      }
+      if (count) {
+        const current = Number((count.textContent || '').replace(/\D/g, '')) || 0;
+        count.hidden = false;
+        count.textContent = `${current + 1} 条`;
+      }
+      hint.textContent = '留言已发出。';
+      toast('留言已发出');
+    } catch (err) {
+      hint.textContent = `公开留言暂时不可用，改为发到 ${guestbookEmail()}。`;
+      guestMailto(nickname, message, hint);
+    } finally {
+      submit.disabled = false;
+    }
+  });
 }
 
 /* ---------------- 路由 ---------------- */
@@ -649,6 +953,7 @@ async function boot() {
 
   renderNav();
   $('#foot').innerHTML = renderFoot();
+  bindGuestbook();
   await render();
 
   initAiDock({
@@ -678,6 +983,7 @@ async function boot() {
             state.data = await loadData();
             renderNav();
             $('#foot').innerHTML = renderFoot();
+            bindGuestbook();
             await render(false);
             toast('内容已更新');
           } catch (err) { /* ignore */ }

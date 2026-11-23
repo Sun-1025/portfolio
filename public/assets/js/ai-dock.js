@@ -3,11 +3,11 @@
    后端地址由 window.SZH_AI_ENDPOINT 或 site.json 的 ai.endpoint 注入
    ============================================================ */
 
-const CONTACT_TEXT = '邮箱 1322816531@qq.com ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 chgh740905。GitHub 或 Gitee 仓库开 Issue 也能联系。';
+const CONTACT_TEXT = '邮箱 1322816531@qq.com ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密。GitHub 或 Gitee 仓库开 Issue 也能联系。';
 
 const FALLBACKS = [
   {
-    test: /联系|邮箱|邮件|微信|github|gitee|issue|合作|找我/i,
+    test: /联系|邮箱|邮件|QQ|微信|github|gitee|issue|合作|找我/i,
     answer: CONTACT_TEXT
   },
   {
@@ -63,16 +63,23 @@ function makeDock(contacts, facts, quick) {
   const dock = document.createElement('div');
   dock.className = 'ai-dock';
   dock.innerHTML = `
-    <section class="ai-panel" id="aiPanel" role="dialog" aria-label="孙志昊的 AI 分身" hidden>
+    <section class="ai-panel" id="aiPanel" role="dialog" aria-label="孙志昊的 AI 助手" hidden>
       <header class="ai-panel-head">
-        <span>~/sunzhihao <strong>$</strong> ask</span>
+        <span class="ai-panel-id">
+          <svg class="ai-panel-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="8.5" y="8.5" width="47" height="47" rx="13.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity=".45"/>
+            <path d="M23 22.5 35.5 32 23 41.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="45.5" cy="18.5" r="3.2" fill="var(--accent-2, #7ce9d5)"/>
+          </svg>
+          <span>~/sunzhihao <strong>$</strong> ask</span>
+        </span>
         <span class="ai-status" id="aiStatus"><i></i><span>READY</span></span>
         <button class="ai-close" type="button" aria-label="关闭 AI 面板">×</button>
       </header>
       <div class="ai-log" id="aiLog" role="log" aria-live="polite">
         <article class="ai-msg ai-msg--bot">
-          <span class="ai-msg-label">SZH</span>
-          <p>我是孙志昊的 AI 分身。项目、技术栈、实习安排，问我就行。我只答这个站点上的事，不编造。</p>
+          <span class="ai-msg-label">SZH / AI</span>
+          <p>我是孙志昊的 AI 助手。项目、技术栈、实习安排，问我就行。我只答这个站点上的事，不编造。</p>
         </article>
       </div>
       <div class="ai-quick">
@@ -88,8 +95,15 @@ function makeDock(contacts, facts, quick) {
         仓库开 Issue 也能联系。回答只来自本站公开信息。
       </div>
     </section>
-    <button class="ai-fab" id="aiFab" type="button" aria-label="打开 AI 分身" aria-expanded="false" aria-controls="aiPanel">
-      <span class="ai-fab-mark" aria-hidden="true">&gt;</span>
+    <button class="ai-fab" id="aiFab" type="button" aria-label="打开 AI 助手" aria-expanded="false" aria-controls="aiPanel">
+      <span class="ai-fab-ring" aria-hidden="true"></span>
+      <svg class="ai-fab-mark" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="8.5" y="8.5" width="47" height="47" rx="13.5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-opacity=".38"/>
+        <path d="M23 22.5 35.5 32 23 41.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M41 18.5v27" stroke="var(--accent-2, #7ce9d5)" stroke-width=".9" stroke-opacity=".35"/>
+        <circle cx="45.5" cy="18.5" r="3.2" fill="var(--accent-2, #7ce9d5)"/>
+      </svg>
+      <span class="sr-only">AI 助手</span>
     </button>
   `;
 

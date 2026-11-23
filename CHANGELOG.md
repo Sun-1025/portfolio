@@ -1,5 +1,28 @@
 # 更新记录
 
+## 4.0.1 — 2026-11-23（iOS 27 日间玻璃，未发布）
+
+- 新增 `public/assets/css/app-ios27.css`：所有规则限定 `html[data-theme="light"][data-glass="ios27"]`，只覆盖浅色/日间模式；深色/夜间模式不加载任何 iOS27 规则，保持 v4 原版。
+- 材质：`blur(22px)` + `saturate(138%)` + `brightness(1.01)`，低饱和白 tint `.68`（浮层 `.86`、抽屉/滚动态 `.78`、小控件 `.44–.56`），0.5px 白内描边、极细暗外沿、双层柔和落影。
+- 顶部导航、移动抽屉、Hero 控制台、AI 浮标与面板、项目/实践/兴趣 grouped list、详情 meta 条、项目卡片、工具卡片与工具面板统一玻璃材质。
+- 移动抽屉用 `.topbar:has(.nav.is-open)` 临时关闭父级 `backdrop-filter`，解决 backdrop root 导致的模糊失效。
+- 浅色为 WCAG AA 微调文字色与实心填充：`--muted:#5f6e66`、小号 accent `#557000`、实心按钮 `#557000`（白字 5.37:1）；品牌 lime 保留在大标题与装饰。
+- 未改 JS、路由、文案、`data/site.json`、AI 逻辑、工具业务、CMS/后台 API；未改字号、行高、导航高度、按钮尺寸、栅格间距。
+- 新增 `docs/material-ios27-light-glass.md`、`docs/audit-ios27.md`；`dist` 已重建 56 个文件 5.93MB，`sync/deploy-api.ps1` 已补 `app-ios27.css`。
+- 待办：等待部署指令后推送 GitHub / GitHub Pages / Gitee；`/classic/` 与 `/admin/` 未接玻璃覆盖层。
+
+## 4.0.0 — 2026-11-23（全量视觉重构 + 文案优化）
+
+- 视觉方向从 HUD 小字密度改为「工程仪表 + 编辑式排版」：IBM Plex Sans / IBM Plex Mono / Noto Sans SC，酸性信号绿 + 冰青，建立六级信息层级 + 首页展示级。
+- 桌面顶栏 72px、菜单 16.5px / 500、导航点击 48.7–50.4px、操作按钮 44–46px；移动端 62px，菜单 15.5px / 48px 行高。
+- 首页 Hero 改为左文右图，新增磨砂玻璃信号核心 `signal-core.webp`；三个核心项目封面统一为同一摄影棚、同一材质的 1200×800 WebP。
+- 新增 Tailwind v4 构建链：`src/tailwind.css` → `public/assets/css/tailwind.css`；页面样式以 `app-v4.css` 覆盖旧层，保留旧路由、主题、工具与 AI 功能。
+- 右下角 AI 助手改为 56×56 SVG「终端提示符 + 信号脉冲」，双主题、状态环、悬停与点击反馈；面板 420px，移动端底部抽屉。
+- 捆绑文案重写：Hero A/B、三个核心项目、三段实践、四项兴趣、三条工作原则、关于九段；删除夸大表述，补事实边界。
+- 建立 12px 字号硬下限；1920 / 1440 / 390 三档 × 四条路由叶子文本 0 处 <12px。
+- 静态导出 55 个文件 5.91MB；新增 `docs/audit-v4.md`、`design-v4.md`、`copy-v4.md`、`responsive-v4.md`、`ai-logo-spec.md`、`checklist-v4.md`。
+- 待办：推送 GitHub / GitHub Pages / Gitee 后线上才切换为 v4。
+
 ## 3.4.0 — 2026-11-23（文案重写 + 站内 AI 分身）
 
 - 首页主标改为「舍我其谁」，移除 hero 首段；字距 0.15em，四字整体淡入，不再单独强调第二行。

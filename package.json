@@ -1,6 +1,6 @@
 {
   "name": "portfolio-v2",
-  "version": "3.4.0",
+  "version": "4.0.0",
   "private": true,
   "description": "个人网站 3.0：Signal 控制台视觉 + 个人主页 + 在线工具 + 可视化后台",
   "main": "server.js",
@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "init": "node scripts/init-admin.js",
-    "export": "node scripts/export-static.js"
+    "export": "node scripts/export-static.js",
+    "css": "tailwindcss -i ./src/tailwind.css -o ./public/assets/css/tailwind.css --minify",
+    "build": "npm run css && npm run export"
   },
   "engines": {
     "node": ">=18"
@@ -23,8 +25,10 @@
     "multer": "^2.5.0"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
     "clean-css": "^5.3.3",
     "sharp": "^0.35.5",
+    "tailwindcss": "^4.3.5",
     "terser": "^5.51.4"
   }
 }
