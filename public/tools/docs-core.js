@@ -1,6 +1,7 @@
 /* 文档转换：PDF / Office / EPUB / 3D。所有库按需加载，不上传文件。 */
-import { wrapHtml, htmlToText } from './convert-core.js';
+import { wrapHtml, jsonToCsv } from './convert-core.js';
 import { convertModel } from './model-core.js';
+import { convertStructuredText } from './data-core.js';
 
 const scriptCache = new Map();
 let pdfjsPromise = null;
@@ -31,6 +32,58 @@ const getPdfLib = () => loadScript('PDFLib', './vendor/pdf-lib.min.js');
 const getMammoth = () => loadScript('mammoth', './vendor/mammoth.browser.min.js');
 const getXLSX = () => loadScript('XLSX', './vendor/xlsx.full.min.js');
 const getJSZip = () => loadScript('JSZip', './vendor/jszip.min.js');
+const getYaml = () => loadScript('jsyaml', './vendor/js-yaml.min.js');
+const getTurndown = () => loadScript('TurndownService', './vendor/turndown.js');
+const getLame = () => loadScript('lamejs', './vendor/lame.min.js');
+
+async function htmlToMarkdown(html) {
+  const TurndownService = await getTurndown();
+  const service = new TurndownService({
+    headingStyle: 'atx',
+    bulletListMarker: '-',
+    codeBlockStyle: 'fenced',
+  });
+  return service.turndown(String(html || ''));
+}
+
+async function fileToJson(file) {
+  try { return JSON.parse((await file.text()).replace(/^\uFEFF/, '')); } catch (err) { throw new Error('JSON 解析失败'); }
+}
+
+export async function yamlConvert(file, target) {
+  const yaml = await getYaml();
+  let data;
+  try { data = yaml.load((await file.text()).replace(/^\uFEFF/, '')); } catch (err) { throw new Error('YAML 解析失败'); }
+  if (target === 'json') return blobFromText(JSON.stringify(data, null, 2), 'application/json;charset=utf-8', 'json');
+  if (target === 'csv') {
+    const rows = Array.isArray(data) ? data : [data];
+    if (!rows.length || rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row))) throw new Error('YAML 顶层需要是对象或对象数组');
+    return blobFromText(jsonToCsv(JSON.stringify(rows)), 'text/csv;charset=utf-8', 'csv');
+  }
+  return textResult(JSON.stringify(data, null, 2));
+}
+
+export async function jsonToYaml(file) {
+  const yaml = await getYaml();
+  return blobFromText(yaml.dump(await fileToJson(file), { noRefs: true, lineWidth: 100 }), 'text/yaml;charset=utf-8', 'yaml');
+}
+
+export async function htmlToMarkdownFile(file) {
+  return textResult(await htmlToMarkdown(await file.text()), 'md');
+}
+
+export async function structuredTextConvert(file, from, to) {
+  const text = await file.text();
+  if (from === 'json' && to === 'yaml') {
+    return textResult(await (await getYaml()).dump(JSON.parse(text.replace(/^\uFEFF/, ''))), 'yaml');
+  }
+  if (from === 'csv' && to === 'yaml') {
+    const { csvToJson } = await import('./convert-core.js');
+    return textResult(await (await getYaml()).dump(JSON.parse(csvToJson(text))), 'yaml');
+  }
+  const result = convertStructuredText(text, from, to);
+  return blobFromText(result.content, result.mime, result.ext);
+}
 
 async function getPdfjs() {
   if (!pdfjsPromise) {
@@ -136,13 +189,29 @@ export async function pdfToImages(file, target) {
 async function imageBlobForPdf(file) {
   const ext = file.name.split('.').pop().toLowerCase().replace('jpeg', 'jpg');
   if (ext === 'jpg' || ext === 'png') return { bytes: await file.arrayBuffer(), type: ext };
-  const bitmap = await createImageBitmap(file);
+  let source;
+  let width;
+  let height;
+  try {
+    source = await createImageBitmap(file);
+    width = source.width;
+    height = source.height;
+  } catch (err) {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    source = image;
+    width = image.naturalWidth || image.width || 1024;
+    height = image.naturalHeight || image.height || 1024;
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
   const canvas = document.createElement('canvas');
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = width;
+  canvas.height = height;
   const context = canvas.getContext('2d');
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
+  context.drawImage(source, 0, 0, width, height);
+  source.close?.();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('图片转 PDF 失败');
   return { bytes: await blob.arrayBuffer(), type: 'png' };
@@ -169,6 +238,7 @@ export async function docxConvert(file, target) {
     return textResult(tidyText(result.value));
   }
   const result = await mammoth.convertToHtml({ arrayBuffer });
+  if (target === 'md') return textResult(await htmlToMarkdown(result.value || ''), 'md');
   return htmlResult(wrapHtml(baseName(file.name), result.value || '<p></p>'));
 }
 
@@ -181,6 +251,10 @@ export async function xlsxConvert(file, target) {
   if (target === 'csv') {
     const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ',', RS: '\n' });
     return blobFromText(`\uFEFF${csv}`, 'text/csv;charset=utf-8', 'csv');
+  }
+  if (target === 'tsv') {
+    const tsv = XLSX.utils.sheet_to_csv(sheet, { FS: '\t', RS: '\n' });
+    return blobFromText(`\uFEFF${tsv}`, 'text/tab-separated-values;charset=utf-8', 'tsv');
   }
   if (target === 'json') {
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
@@ -208,21 +282,25 @@ export async function dataToXlsx(file, from) {
   return { blob: new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), ext: 'xlsx' };
 }
 
-export async function pptxToText(file) {
+export async function pptxConvert(file, target) {
   const JSZip = await getJSZip();
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   const slides = Object.keys(zip.files)
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
     .sort((a, b) => Number(a.match(/(\d+)\.xml$/)[1]) - Number(b.match(/(\d+)\.xml$/)[1]));
   if (!slides.length) throw new Error('PPTX 里没有找到幻灯片');
-  const out = [];
+  const pages = [];
   for (let i = 0; i < slides.length; i += 1) {
     const xml = await zip.file(slides[i]).async('string');
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const texts = Array.from(doc.getElementsByTagNameNS('*', 't')).map((node) => node.textContent.trim()).filter(Boolean);
-    out.push(`===== 第 ${i + 1} 页 =====\n\n${texts.join('\n')}`);
+    pages.push(texts);
   }
-  return textResult(out.join('\n\n'));
+  if (target === 'html') {
+    const body = pages.map((texts, i) => `<section><h2>第 ${i + 1} 页</h2>${texts.map((text) => `<p>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`).join('')}</section>`).join('\n');
+    return htmlResult(wrapHtml(baseName(file.name), body));
+  }
+  return textResult(pages.map((texts, i) => `===== 第 ${i + 1} 页 =====\n\n${texts.join('\n')}`).join('\n\n'));
 }
 
 function resolvePath(base, relative) {
@@ -314,12 +392,81 @@ export async function epubConvert(file, target) {
     }
   }
   if (target === 'txt') return textResult(texts.join('\n\n'));
-  return htmlResult(wrapHtml(title, `<h1>${title}</h1>${parts.join('\n')}`));
+  const htmlBody = `<h1>${title}</h1>${parts.join('\n')}`;
+  if (target === 'md') return textResult(await htmlToMarkdown(htmlBody), 'md');
+  return htmlResult(wrapHtml(title, htmlBody));
+}
+
+export async function audioBufferToMp3(audioBuffer) {
+  const lame = await getLame();
+  if (!lame || typeof lame.Mp3Encoder !== 'function') throw new Error('MP3 编码器加载失败');
+  const channels = Math.min(2, audioBuffer.numberOfChannels) || 1;
+  const sampleRate = audioBuffer.sampleRate;
+  const encoder = new lame.Mp3Encoder(channels, sampleRate, 128);
+  const block = 1152;
+  const left = audioBuffer.getChannelData(0);
+  const right = channels > 1 ? audioBuffer.getChannelData(1) : left;
+  const chunks = [];
+  for (let offset = 0; offset < audioBuffer.length; offset += block) {
+    const length = Math.min(block, audioBuffer.length - offset);
+    const leftChunk = new Int16Array(length);
+    const rightChunk = new Int16Array(length);
+    for (let i = 0; i < length; i += 1) {
+      const l = Math.max(-1, Math.min(1, left[offset + i]));
+      leftChunk[i] = l < 0 ? l * 0x8000 : l * 0x7fff;
+      if (channels > 1) {
+        const r = Math.max(-1, Math.min(1, right[offset + i]));
+        rightChunk[i] = r < 0 ? r * 0x8000 : r * 0x7fff;
+      }
+    }
+    const encoded = encoder.encodeBuffer(leftChunk, channels > 1 ? rightChunk : leftChunk);
+    if (encoded.length) chunks.push(new Int8Array(encoded));
+  }
+  const tail = encoder.flush();
+  if (tail.length) chunks.push(new Int8Array(tail));
+  return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+export async function fb2Convert(file, target) {
+  const xml = await file.text();
+  const doc = new DOMParser().parseFromString(xml.replace(/^\uFEFF/, ''), 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('FB2 XML 解析失败');
+  const title = (doc.getElementsByTagNameNS('*', 'book-title')[0]?.textContent || baseName(file.name)).trim();
+  const body = doc.getElementsByTagNameNS('*', 'body')[0];
+  if (!body) throw new Error('FB2 里没有正文');
+  const paragraphs = Array.from(body.getElementsByTagNameNS('*', 'p')).map((node) => node.textContent.trim()).filter(Boolean);
+  if (!paragraphs.length) throw new Error('FB2 里没有可读取的段落');
+  const htmlBody = `<h1>${title.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</h1>${paragraphs.map((text) => `<p>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`).join('\n')}`;
+  if (target === 'txt') return textResult(paragraphs.join('\n\n'));
+  if (target === 'md') return textResult(await htmlToMarkdown(htmlBody), 'md');
+  return htmlResult(wrapHtml(title, htmlBody));
+}
+
+export async function cbzToPdf(file) {
+  const JSZip = await getJSZip();
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const images = Object.keys(zip.files)
+    .filter((name) => !zip.files[name].dir && /\.(png|jpe?g|webp|gif)$/i.test(name))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  if (!images.length) throw new Error('CBZ 里没有图片');
+  if (images.length > 100) throw new Error('CBZ 超过 100 张图片，请拆分后再转');
+  const PDFLib = await getPdfLib();
+  const doc = await PDFLib.PDFDocument.create();
+  for (const name of images) {
+    const blob = await zip.file(name).async('blob');
+    const imageFile = new File([blob], name.split('/').pop() || 'page.png', { type: blob.type || 'application/octet-stream' });
+    const { bytes, type } = await imageBlobForPdf(imageFile);
+    const image = type === 'jpg' ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
+    const width = image.width * 72 / 96;
+    const height = image.height * 72 / 96;
+    const page = doc.addPage([width, height]);
+    page.drawImage(image, { x: 0, y: 0, width, height });
+  }
+  const out = await doc.save();
+  return { blob: new Blob([out], { type: 'application/pdf' }), ext: 'pdf' };
 }
 
 export async function modelConvert(file, from, to) {
   const text = await convertModel(await file.arrayBuffer(), from, to);
   return blobFromText(text, 'text/plain;charset=utf-8', to);
 }
-
-export { htmlToText };

@@ -460,7 +460,7 @@ function renderTools() {
     </div>
     <div class="tools-status-strip">
       <span class="tools-status-live"><i></i>LOCAL ENGINE / READY</span>
-      <span><b>${Number(tools.routes) || 44}</b> REAL ROUTES</span>
+      <span><b>${Number(tools.routes) || 99}</b> REAL ROUTES</span>
       <span><b>${list.length}</b> ACTIVE MODULES</span>
       <span class="tools-status-right">NO SERVER / NO UPLOAD</span>
     </div>

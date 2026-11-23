@@ -1,42 +1,54 @@
 /* 本地转换核心：只放纯函数，便于浏览器和 Node 测试复用。 */
 
-export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-export const DATA_EXT = ['json', 'csv', 'md', 'markdown', 'txt', 'html', 'htm'];
-export const AUDIO_EXT = ['mp3', 'ogg', 'oga', 'm4a', 'aac', 'flac'];
+export const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'ico'];
+export const DATA_EXT = ['json', 'csv', 'md', 'markdown', 'txt', 'html', 'htm', 'xml', 'yaml', 'yml', 'ini', 'tsv', 'ndjson'];
+export const AUDIO_EXT = ['mp3', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'wav'];
 export const PDF_EXT = ['pdf'];
-export const OFFICE_EXT = ['docx', 'xlsx', 'xls', 'pptx'];
-export const EBOOK_EXT = ['epub'];
-export const MODEL_EXT = ['stl', 'obj'];
+export const OFFICE_EXT = ['docx', 'xlsx', 'xls', 'pptx', 'ods'];
+export const EBOOK_EXT = ['epub', 'fb2', 'cbz'];
+export const MODEL_EXT = ['stl', 'obj', 'ply'];
 
 export const IMAGE_TARGETS = ['png', 'jpg', 'webp', 'pdf'];
-export const AUDIO_TARGETS = ['wav'];
+export const AUDIO_TARGETS = ['wav', 'mp3'];
 
 export const MATRIX = [
   { family: 'image', from: 'PNG', targets: ['JPG', 'WEBP', 'PDF'], note: '透明底转 JPG 自动补白' },
   { family: 'image', from: 'JPG / JPEG', targets: ['PNG', 'WEBP', 'PDF'], note: '保留原尺寸' },
   { family: 'image', from: 'WEBP', targets: ['PNG', 'JPG', 'PDF'], note: '适合导出通用图片' },
   { family: 'image', from: 'GIF', targets: ['PNG', 'JPG', 'WEBP', 'PDF'], note: '静态首帧' },
-  { family: 'data', from: 'JSON', targets: ['CSV', 'TXT', 'XLSX'], note: '数组对象转表格' },
-  { family: 'data', from: 'CSV', targets: ['JSON', 'TXT', 'XLSX'], note: '首行作为字段名' },
+  { family: 'image', from: 'BMP', targets: ['PNG', 'JPG', 'WEBP', 'PDF'], note: '位图转通用格式' },
+  { family: 'image', from: 'SVG', targets: ['PNG', 'JPG', 'WEBP', 'PDF'], note: '矢量栅格化' },
+  { family: 'image', from: 'ICO', targets: ['PNG', 'JPG', 'WEBP', 'PDF'], note: '图标取最大帧' },
+  { family: 'data', from: 'JSON', targets: ['CSV', 'TXT', 'XLSX', 'XML', 'YAML', 'INI', 'TSV', 'NDJSON'], note: '数组对象转表格' },
+  { family: 'data', from: 'CSV', targets: ['JSON', 'TXT', 'XLSX', 'TSV', 'YAML'], note: '首行作为字段名' },
+  { family: 'data', from: 'YAML', targets: ['JSON', 'CSV', 'TXT'], note: '解析 YAML 结构' },
+  { family: 'data', from: 'XML', targets: ['JSON', 'TXT'], note: '元素转对象' },
+  { family: 'data', from: 'INI', targets: ['JSON', 'TXT'], note: '分组键值对' },
+  { family: 'data', from: 'TSV', targets: ['CSV', 'JSON', 'TXT'], note: '制表符分隔' },
+  { family: 'data', from: 'NDJSON', targets: ['JSON', 'CSV', 'TXT'], note: '每行一个对象' },
   { family: 'data', from: 'Markdown', targets: ['HTML', 'TXT'], note: '可下载完整 HTML' },
   { family: 'data', from: 'TXT', targets: ['HTML'], note: '纯文本转网页' },
-  { family: 'data', from: 'HTML', targets: ['TXT'], note: '提取正文' },
-  { family: 'audio', from: 'MP3 / M4A / OGG / AAC / FLAC', targets: ['WAV'], note: '浏览器解码后转 PCM' },
+  { family: 'data', from: 'HTML', targets: ['TXT', 'MD'], note: '正文提取 / 转 Markdown' },
+  { family: 'audio', from: 'MP3 / M4A / OGG / AAC / FLAC / WAV', targets: ['WAV', 'MP3'], note: '浏览器解码后转 PCM 或 MP3' },
   { family: 'pdf', from: 'PDF', targets: ['TXT', 'PNG', 'JPG'], note: '逐页提取文字或渲染' },
-  { family: 'office', from: 'DOCX', targets: ['HTML', 'TXT'], note: '保留标题、段落与表格' },
-  { family: 'office', from: 'XLSX / XLS', targets: ['CSV', 'JSON', 'HTML'], note: '读取首个工作表' },
-  { family: 'office', from: 'PPTX', targets: ['TXT'], note: '提取每页文字' },
+  { family: 'office', from: 'DOCX', targets: ['HTML', 'TXT', 'MD'], note: '保留标题、段落与表格' },
+  { family: 'office', from: 'XLSX / XLS', targets: ['CSV', 'JSON', 'HTML', 'TSV'], note: '读取首个工作表' },
+  { family: 'office', from: 'ODS', targets: ['CSV', 'JSON', 'HTML', 'TSV'], note: '读取首个工作表' },
+  { family: 'office', from: 'PPTX', targets: ['TXT', 'HTML'], note: '提取每页文字' },
   { family: 'office', from: 'CSV / JSON', targets: ['XLSX'], note: '写入 Excel 工作簿' },
-  { family: 'ebook', from: 'EPUB', targets: ['HTML', 'TXT'], note: '按阅读顺序合并章节' },
-  { family: 'model', from: 'STL', targets: ['OBJ'], note: '三角网格，无材质' },
-  { family: 'model', from: 'OBJ', targets: ['STL'], note: '三角网格，无材质' },
+  { family: 'ebook', from: 'EPUB', targets: ['HTML', 'TXT', 'MD'], note: '按阅读顺序合并章节' },
+  { family: 'ebook', from: 'FB2', targets: ['HTML', 'TXT', 'MD'], note: 'XML 电子书正文' },
+  { family: 'ebook', from: 'CBZ', targets: ['PDF'], note: '漫画图片合成 PDF' },
+  { family: 'model', from: 'STL', targets: ['OBJ', 'PLY'], note: '三角网格，无材质' },
+  { family: 'model', from: 'OBJ', targets: ['STL', 'PLY'], note: '三角网格，无材质' },
+  { family: 'model', from: 'PLY', targets: ['OBJ', 'STL'], note: '三角网格，无材质' },
 ];
 
 export function extOf(name) {
   const m = String(name || '').toLowerCase().match(/([a-z0-9]+)$/);
   if (!m) return '';
   const ext = m[1];
-  return ext === 'jpeg' ? 'jpg' : ext === 'markdown' ? 'md' : ext === 'oga' ? 'ogg' : ext === 'htm' ? 'html' : ext;
+  return ext === 'jpeg' ? 'jpg' : ext === 'markdown' ? 'md' : ext === 'oga' ? 'ogg' : ext === 'htm' ? 'html' : ext === 'yml' ? 'yaml' : ext;
 }
 
 export function familyOf(ext) {
@@ -52,19 +64,26 @@ export function familyOf(ext) {
 
 export function targetsFor(ext) {
   if (IMAGE_EXT.includes(ext)) return IMAGE_TARGETS.filter((x) => x !== ext);
-  if (ext === 'json') return ['csv', 'txt', 'xlsx'];
-  if (ext === 'csv') return ['json', 'txt', 'xlsx'];
+  if (ext === 'json') return ['csv', 'txt', 'xlsx', 'xml', 'yaml', 'ini', 'tsv', 'ndjson'];
+  if (ext === 'csv') return ['json', 'txt', 'xlsx', 'tsv', 'yaml'];
+  if (ext === 'yaml') return ['json', 'csv', 'txt'];
+  if (ext === 'xml') return ['json', 'txt'];
+  if (ext === 'ini') return ['json', 'txt'];
+  if (ext === 'tsv') return ['csv', 'json', 'txt'];
+  if (ext === 'ndjson') return ['json', 'csv', 'txt'];
   if (ext === 'md') return ['html', 'txt'];
   if (ext === 'txt') return ['html'];
-  if (ext === 'html') return ['txt'];
-  if (AUDIO_EXT.includes(ext)) return ['wav'];
+  if (ext === 'html') return ['txt', 'md'];
+  if (AUDIO_EXT.includes(ext)) return AUDIO_TARGETS.filter((x) => x !== ext);
   if (ext === 'pdf') return ['txt', 'png', 'jpg'];
-  if (ext === 'docx') return ['html', 'txt'];
-  if (ext === 'xlsx' || ext === 'xls') return ['csv', 'json', 'html'];
-  if (ext === 'pptx') return ['txt'];
-  if (ext === 'epub') return ['html', 'txt'];
-  if (ext === 'stl') return ['obj'];
-  if (ext === 'obj') return ['stl'];
+  if (ext === 'docx') return ['html', 'txt', 'md'];
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'ods') return ['csv', 'json', 'html', 'tsv'];
+  if (ext === 'pptx') return ['txt', 'html'];
+  if (ext === 'epub' || ext === 'fb2') return ['html', 'txt', 'md'];
+  if (ext === 'cbz') return ['pdf'];
+  if (ext === 'stl') return ['obj', 'ply'];
+  if (ext === 'obj') return ['stl', 'ply'];
+  if (ext === 'ply') return ['obj', 'stl'];
   return [];
 }
 

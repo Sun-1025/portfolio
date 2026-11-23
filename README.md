@@ -66,25 +66,24 @@ portfolio-v2/
 | 分支 | 入口 | 说明 |
 |---|---|---|
 | 个人主页 | `#/` / `#/work` | Hero、关于、项目、技能、经历、联系 |
-| 在线工具 | `#/tools` | 文件转换台（18 条真实路径）+ Markdown、字数、单位、日期四个小工具 |
+| 在线工具 | `#/tools` | 文件转换台（99 条真实路径）+ Markdown、字数、单位、日期四个小工具 |
 | 经典版 | `/classic/` | 原版 3D 黑板场景，完整保留 |
 
 顶部导航统一；后台可控制分支显示/隐藏与导航排序。前台路由也会遵守分支隐藏开关。
 
 ## 在线工具
 
-`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 44 条真实转换路径：
+`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 99 条真实转换路径：
 
-- 图片：PNG / JPG / JPEG / WebP / GIF 转为 PNG、JPG、WebP 或 PDF；GIF 只取首帧。
-- 数据：JSON ↔ CSV / TXT，CSV ↔ JSON / TXT；JSON / CSV 可写成 XLSX。
-- 文档：Markdown ↔ HTML / TXT，TXT → HTML。
-- 音频：MP3 / OGG / OGA / M4A / AAC / FLAC 统一转为 WAV。
+- 图片：PNG / JPG / JPEG / WebP / GIF / BMP / SVG / ICO 转为 PNG、JPG、WebP 或 PDF；GIF 只取首帧，SVG 栅格化。
+- 数据：JSON ↔ CSV / TXT / XLSX / XML / YAML / INI / TSV / NDJSON；CSV ↔ JSON / TXT / XLSX / TSV / YAML；YAML / XML / INI / TSV / NDJSON → JSON / TXT；Markdown ↔ HTML / TXT；TXT → HTML；HTML → TXT / Markdown。
+- 音频：MP3 / OGG / OGA / M4A / AAC / FLAC / WAV 解码后导出 WAV 或 MP3。
 - PDF：PDF → TXT / PNG / JPG；多页转图片会打包成 ZIP。
-- Office：DOCX → HTML / TXT；XLSX / XLS → CSV / JSON / HTML；PPTX → TXT；CSV / JSON → XLSX。
-- 电子书：EPUB → HTML / TXT。
-- 3D：STL ↔ OBJ 三角网格互换。
+- Office：DOCX → HTML / TXT / Markdown；XLSX / XLS / ODS → CSV / JSON / HTML / TSV；PPTX → TXT / HTML；CSV / JSON → XLSX。
+- 电子书：EPUB / FB2 → HTML / TXT / Markdown；CBZ 漫画 → PDF。
+- 3D：STL / OBJ / PLY 三角网格互换。
 
-PDF、Office、EPUB 和 PDF 生成使用按需加载的开源库（PDF.js、pdf-lib、Mammoth、SheetJS、JSZip），打开工具页时不下载。视频转码需要 FFmpeg 引擎，当前不开放；PDF 扫描件没有 OCR，只能提取已有文字层；Office 不提供 DOCX 转 PDF 的版式保真转换；MOBI / AZW3、GLB / GLTF 等格式暂不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频/PDF 80 MB、Office/电子书/3D 40 MB；PDF 转图片最多 80 页。
+PDF、Office、电子书、YAML、Markdown 和 PDF 生成使用按需加载的开源库（PDF.js、pdf-lib、Mammoth、SheetJS、JSZip、js-yaml、Turndown、lamejs），打开工具页时不下载。视频转码需要 FFmpeg 引擎，当前不开放；PDF 扫描件没有 OCR，只能提取已有文字层；Office 不提供 DOCX 转 PDF 的版式保真转换；MOBI / AZW3、GLB / GLTF、HEIC / TIFF 等格式暂不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频/PDF 80 MB、Office/电子书/3D 40 MB；PDF 转图片最多 80 页。
 
 ## 常用命令
 

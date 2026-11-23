@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { convertModel, parseObj, parseStl } from '../public/tools/model-core.js';
+import { convertModel, parseObj, parseStl, parsePly } from '../public/tools/model-core.js';
 
 const obj = `
 # tetra
@@ -47,5 +47,30 @@ view.setFloat32(128, 0, true);
 const binaryMesh = parseStl(binary);
 assert.equal(binaryMesh.faces.length, 1);
 assert.deepEqual(binaryMesh.vertices[1], [0, 1, 0]);
+
+const ply = `ply
+format ascii 1.0
+element vertex 3
+property float x
+property float y
+property float z
+element face 1
+property list uchar int vertex_indices
+end_header
+0 0 0
+1 0 0
+0 1 0
+3 0 1 2
+`;
+const plyMesh = parsePly(new TextEncoder().encode(ply));
+assert.equal(plyMesh.vertices.length, 3);
+assert.equal(plyMesh.faces.length, 1);
+const plyText = convertModel(new TextEncoder().encode(obj), 'obj', 'ply');
+assert.match(plyText, /^ply\nformat ascii 1.0/);
+assert.match(plyText, /element vertex 4/);
+assert.match(plyText, /element face 4/);
+const fromPly = convertModel(new TextEncoder().encode(ply), 'ply', 'obj');
+assert.equal((fromPly.match(/^v /gm) || []).length, 3);
+assert.equal((fromPly.match(/^f /gm) || []).length, 1);
 
 console.log('model-core tests: OK');

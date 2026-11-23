@@ -5,7 +5,8 @@ import {
 } from './convert-core.js';
 import {
   pdfToText, pdfToImages, imageToPdf, docxConvert, xlsxConvert, dataToXlsx,
-  pptxToText, epubConvert, modelConvert,
+  pptxConvert, epubConvert, fb2Convert, cbzToPdf, modelConvert,
+  yamlConvert, structuredTextConvert, htmlToMarkdownFile, audioBufferToMp3,
 } from './docs-core.js';
 
 const MAX_BYTES = {
@@ -258,6 +259,7 @@ async function convertAudio(item) {
     const decoded = await new Promise((resolve, reject) => {
       audioContext.decodeAudioData(buffer.slice(0), resolve, reject);
     });
+    if (item.target === 'mp3') return audioBufferToMp3(decoded);
     return wavBlobFromAudioBuffer(decoded);
   } finally {
     await audioContext.close().catch(() => {});
@@ -288,6 +290,20 @@ async function convertItem(item) {
         const result = await dataToXlsx(item.file, item.ext);
         blob = result.blob;
         outExt = result.ext;
+      } else if (item.ext === 'yaml') {
+        const result = await yamlConvert(item.file, item.target);
+        blob = result.blob;
+        outExt = result.ext;
+      } else if (['xml', 'ini', 'tsv', 'ndjson'].includes(item.ext)
+        || (item.ext === 'json' && ['xml', 'ini', 'tsv', 'ndjson', 'yaml'].includes(item.target))
+        || (item.ext === 'csv' && ['tsv', 'yaml'].includes(item.target))) {
+        const result = await structuredTextConvert(item.file, item.ext, item.target);
+        blob = result.blob;
+        outExt = result.ext;
+      } else if (item.ext === 'html' && item.target === 'md') {
+        const result = await htmlToMarkdownFile(item.file);
+        blob = result.blob;
+        outExt = result.ext;
       } else {
         const text = await readFileAsText(item.file);
         const result = convertDataText(text, item.ext, item.target);
@@ -300,12 +316,14 @@ async function convertItem(item) {
       note = result.note || '';
     } else if (item.family === 'office') {
       const result = item.ext === 'docx' ? await docxConvert(item.file, item.target)
-        : (item.ext === 'xlsx' || item.ext === 'xls') ? await xlsxConvert(item.file, item.target)
-          : await pptxToText(item.file);
+        : (item.ext === 'xlsx' || item.ext === 'xls' || item.ext === 'ods') ? await xlsxConvert(item.file, item.target)
+          : await pptxConvert(item.file, item.target);
       blob = result.blob;
       outExt = result.ext;
     } else if (item.family === 'ebook') {
-      const result = await epubConvert(item.file, item.target);
+      const result = item.ext === 'epub' ? await epubConvert(item.file, item.target)
+        : item.ext === 'fb2' ? await fb2Convert(item.file, item.target)
+          : await cbzToPdf(item.file);
       blob = result.blob;
       outExt = result.ext;
     } else if (item.family === 'model') {
@@ -462,7 +480,7 @@ export function render(root, ctx = {}) {
         <button type="button" class="conv-filter" data-family="ebook">电子书</button>
         <button type="button" class="conv-filter" data-family="model">3D</button>
       </div>
-      <label class="conv-search"><span>SEARCH / ROUTES</span><input id="convMatrixSearch" type="search" placeholder="PDF、DOCX、EPUB…" autocomplete="off"></label>
+      <label class="conv-search"><span>SEARCH / ROUTES</span><input id="convMatrixSearch" type="search" placeholder="PDF、DOCX、YAML…" autocomplete="off"></label>
       <div class="conv-matrix" id="convMatrix"></div>
       <div class="conv-matrix-count" id="convMatrixCount"></div>
       <div class="conv-quality">
@@ -471,18 +489,18 @@ export function render(root, ctx = {}) {
       </div>
       <div class="conv-history-head"><span>HISTORY / LOCAL</span><button type="button" id="convHistoryClear">清空</button></div>
       <div class="conv-history" id="convHistoryList"></div>
-      <p class="conv-note">视频转码需要 FFmpeg 引擎，当前暂不开放。Office 只做能保真的文档提取与表格转换，PDF 支持文字/图片提取，EPUB 支持 HTML/TXT，STL/OBJ 支持几何互换。</p>
+      <p class="conv-note">视频转码需要 FFmpeg 引擎，当前暂不开放。Office 只做能保真的文档提取与表格转换（DOCX/XLSX/XLS/ODS/PPTX），PDF 支持文字/图片提取，EPUB/FB2/CBZ 支持正文或漫画导出，STL/OBJ/PLY 支持几何互换，音频支持解码后导出 WAV/MP3。所有文件只在浏览器内存里处理，不上传。</p>
     </aside>
     <main class="converter-main">
       <div class="conv-main-head">
         <div><span class="conv-eyebrow">DROP ZONE / BATCH 001</span><h3>把文件拖进来。</h3></div>
         <div class="conv-main-count"><b>${ROUTE_COUNT}</b><span>REAL ROUTES</span></div>
       </div>
-      <input class="conv-file-input" id="convFile" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.json,.csv,.md,.markdown,.txt,.html,.htm,.mp3,.ogg,.oga,.m4a,.aac,.flac,.pdf,.docx,.xlsx,.xls,.pptx,.epub,.stl,.obj">
+      <input class="conv-file-input" id="convFile" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico,.json,.csv,.md,.markdown,.txt,.html,.htm,.xml,.yaml,.yml,.ini,.tsv,.ndjson,.mp3,.ogg,.oga,.m4a,.aac,.flac,.wav,.pdf,.docx,.xlsx,.xls,.pptx,.ods,.epub,.fb2,.cbz,.stl,.obj,.ply">
       <label class="conv-drop" id="convDrop" for="convFile" tabindex="0">
         <span class="conv-drop-icon">⇣</span>
         <span class="conv-drop-title">拖入文件，或点击选择</span>
-        <span class="conv-drop-sub">图片 · JSON / CSV / MD / TXT / HTML · 音频 · PDF · DOCX / XLSX / PPTX · EPUB · STL / OBJ</span>
+        <span class="conv-drop-sub">图片 PNG/JPG/WEBP/GIF/BMP/SVG/ICO · 数据 JSON/CSV/YAML/XML/INI/TSV/NDJSON/MD/TXT/HTML<br>音频 MP3/OGG/M4A/AAC/FLAC/WAV · PDF · Office DOCX/XLSX/XLS/ODS/PPTX · 电子书 EPUB/FB2/CBZ · 3D STL/OBJ/PLY</span>
         <span class="conv-drop-meta"><i></i>LOCAL ONLY · 单文件 10–80MB · 按类型限制 · 不上传服务器</span>
       </label>
       <div class="conv-toolbar">

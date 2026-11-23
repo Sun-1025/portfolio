@@ -1,5 +1,27 @@
 # 更新记录
 
+## 3.3.0 — 2026-11-23（全格式扩展，视频除外）
+
+- 转换台从 44 条路径扩展到 99 条，输入扩展到 30 类，仍全部在浏览器本地完成，不上传文件。
+- 图片：新增 BMP / SVG / ICO 输入，均可转 PNG / JPG / WebP / PDF；SVG 走 Image 栅格化回退，透明底转 JPG 补白。
+- 数据：新增 XML / YAML / INI / TSV / NDJSON 输入，新增 JSON → XML / YAML / INI / TSV / NDJSON，CSV → TSV / YAML，HTML → Markdown；新建 `data-core.js` 承载结构化文本互转。
+- Office：新增 ODS 读取，DOCX → Markdown，XLSX/XLS/ODS → TSV，PPTX → HTML。
+- 电子书：新增 FB2 → HTML/TXT/Markdown，CBZ 漫画 → PDF（按文件名自然排序，最多 100 页）。
+- 3D：新增 PLY（ASCII / 二进制）解析与导出，STL / OBJ / PLY 三者可互换。
+- 音频：新增 WAV 输入与 MP3 输出；MP3 使用 lamejs 在浏览器内编码。
+- 新增按需库：`js-yaml.min.js`、`turndown.js`、`lame.min.js`；`docs-core.js` 增加 YAML、HTML→Markdown、MP3、FB2、CBZ 实现。
+- 站点文案、工具计数、README、测试脚本同步到 99 条；`qa/test-all-formats.cjs` 覆盖全部新增输入与代表目标。
+
+### 验证
+
+- 浏览器 85 文件批量实测全部完成，无控制台错误：PDF→TXT、DOCX→MD/HTML/TXT、XLSX→TSV/CSV/JSON/HTML、PPTX→HTML/TXT、ODS→CSV/JSON/HTML/TSV、EPUB→MD/HTML/TXT、FB2→HTML/TXT/MD、CBZ→PDF、BMP/SVG/ICO→PNG/JPG/WEBP/PDF、PNG/JPG/WEBP/GIF 图片矩阵、YAML/JSON/XML/INI/TSV/NDJSON/CSV/MD/TXT/HTML 数据矩阵、STL/OBJ/PLY 3D 互换、WAV→MP3、MP3→WAV、PNG→PDF。
+- `convert-core`（99 条路由、30 行矩阵、CSV/Markdown）与 `model-core`（STL/OBJ/PLY）单元测试通过。
+- 移动端 390×844 检查无横向溢出；桌面 1440×1050 截图正常。
+
+### 边界
+
+- 视频、MOBI/AZW3、GLB/GLTF、HEIC/TIFF、扫描件 OCR、DOCX→PDF 版式保真、旧版 DOC/PPT 仍不开放；不伪造成功结果。
+
 ## 3.2.0 — 2026-11-23（PDF / Office / 电子书 / 3D 扩展）
 
 - 转换台从 18 条路径扩展到 44 条：图片可转 PDF；JSON/CSV 可写 XLSX；新增 PDF、Office、EPUB、STL/OBJ 分类。

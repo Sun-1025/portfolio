@@ -57,6 +57,9 @@ function rewriteBase(text) {
 
 async function minifyJs(file) {
   if (!MINIFY) return 0;
+  // vendor 里的 UMD/全局库（Turndown、lamejs、SheetJS 等）不能按 ES module 规则压缩，
+  // 否则顶层 this/全局挂载会被改写，运行时找不到 TurndownService / lamejs。
+  if (file.includes(`${path.sep}tools${path.sep}vendor${path.sep}`)) return 0;
   const code = fs.readFileSync(file, 'utf8');
   try {
     const { minify } = require('terser');

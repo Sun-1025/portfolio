@@ -603,12 +603,12 @@
   "tools": {
     "title": "文件转换台",
     "intro": "把文件拖进来，选目标格式，批量转换后直接下载。图片、数据、文档、音频、PDF、Office、电子书和 3D 模型都在浏览器本地处理，不上传服务器。",
-    "routes": 44,
+    "routes": 99,
     "items": [
       {
         "id": "converter",
         "name": "文件转换台",
-        "desc": "拖拽文件，搜索格式，批量转换成图片、表格、网页、WAV、PDF、XLSX、EPUB 文字版或 OBJ/STL。",
+        "desc": "拖拽文件，搜索格式，批量转换成图片、表格、网页、WAV/MP3、PDF、XLSX、EPUB/FB2 文字版、CBZ 漫画 PDF 或 OBJ/STL/PLY。",
         "category": "convert",
         "module": "converter.js",
         "icon": "⇄",

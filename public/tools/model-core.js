@@ -158,13 +158,175 @@ export function meshToStl(mesh, title = 'model') {
   return out.join('\n');
 }
 
+export function meshToPly(mesh, title = 'model') {
+  const vertices = mesh.vertices;
+  const faces = mesh.faces.filter((face) => face.length >= 3 && face.every((i) => vertices[i]));
+  if (!vertices.length || !faces.length) throw new Error('模型里没有可导出的三角面');
+  const out = [
+    'ply',
+    'format ascii 1.0',
+    `comment Converted by Sun Zhihao tools / ${String(title).replace(/[\r\n]/g, ' ')}`,
+    `element vertex ${vertices.length}`,
+    'property float x',
+    'property float y',
+    'property float z',
+    `element face ${faces.length}`,
+    'property list uchar int vertex_indices',
+    'end_header',
+  ];
+  for (const point of vertices) out.push(norm(point));
+  for (const face of faces) {
+    const triangle = face.length === 3 ? face : [face[0], face[1], face[2]];
+    out.push(`3 ${triangle.join(' ')}`);
+  }
+  out.push('');
+  return out.join('\n');
+}
+
+function plyTypeSize(type) {
+  const map = {
+    char: 1, uchar: 1, int8: 1, uint8: 1,
+    short: 2, ushort: 2, int16: 2, uint16: 2,
+    int: 4, uint: 4, int32: 4, uint32: 4,
+    float: 4, float32: 4, double: 8, float64: 8,
+  };
+  return map[String(type).toLowerCase()] || 0;
+}
+
+function readPlyNumber(view, offset, type, littleEndian) {
+  const lower = String(type).toLowerCase();
+  if (['char', 'int8'].includes(lower)) return { value: view.getInt8(offset), size: 1 };
+  if (['uchar', 'uint8'].includes(lower)) return { value: view.getUint8(offset), size: 1 };
+  if (['short', 'int16'].includes(lower)) return { value: view.getInt16(offset, littleEndian), size: 2 };
+  if (['ushort', 'uint16'].includes(lower)) return { value: view.getUint16(offset, littleEndian), size: 2 };
+  if (['int', 'int32'].includes(lower)) return { value: view.getInt32(offset, littleEndian), size: 4 };
+  if (['uint', 'uint32'].includes(lower)) return { value: view.getUint32(offset, littleEndian), size: 4 };
+  if (['float', 'float32'].includes(lower)) return { value: view.getFloat32(offset, littleEndian), size: 4 };
+  if (['double', 'float64'].includes(lower)) return { value: view.getFloat64(offset, littleEndian), size: 8 };
+  return null;
+}
+
+export function parsePly(buffer) {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  if (!bytes.length) throw new Error('PLY 文件为空');
+  const head = decodeUtf8(bytes.subarray(0, Math.min(bytes.length, 65536)));
+  const headerEnd = head.indexOf('end_header');
+  if (headerEnd < 0) throw new Error('PLY 缺少 end_header');
+  const headerText = head.slice(0, headerEnd);
+  const headerBytes = new TextEncoder().encode(head.slice(0, headerEnd + 'end_header'.length));
+  let bodyOffset = headerBytes.length;
+  while (bodyOffset < bytes.length && (bytes[bodyOffset] === 13 || bytes[bodyOffset] === 10)) bodyOffset += 1;
+  const lines = headerText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!/^ply$/i.test(lines[0] || '')) throw new Error('不是 PLY 文件');
+  let format = 'ascii';
+  let littleEndian = true;
+  const elements = [];
+  let current = null;
+  for (const line of lines.slice(1)) {
+    if (/^comment/i.test(line) || /^obj_info/i.test(line)) continue;
+    const formatMatch = line.match(/^format\s+(\S+)/i);
+    if (formatMatch) {
+      format = formatMatch[1].toLowerCase();
+      littleEndian = format !== 'binary_big_endian';
+      continue;
+    }
+    const elementMatch = line.match(/^element\s+(\S+)\s+(\d+)/i);
+    if (elementMatch) {
+      current = { name: elementMatch[1], count: Number(elementMatch[2]), properties: [] };
+      elements.push(current);
+      continue;
+    }
+    const propMatch = line.match(/^property\s+(list\s+)?(\S+)(?:\s+(\S+))?\s+(\S+)$/i);
+    if (propMatch && current) {
+      current.properties.push({
+        list: Boolean(propMatch[1]),
+        countType: propMatch[1] ? propMatch[2] : null,
+        type: propMatch[1] ? propMatch[3] : propMatch[2],
+        name: propMatch[4],
+      });
+    }
+  }
+  const vertexElement = elements.find((element) => element.name === 'vertex');
+  const faceElement = elements.find((element) => element.name === 'face');
+  if (!vertexElement || !faceElement) throw new Error('PLY 缺少 vertex 或 face 元素');
+  const vertices = [];
+  const faces = [];
+  const parseFace = (indices) => {
+    for (let i = 1; i + 1 < indices.length; i += 1) faces.push([indices[0], indices[i], indices[i + 1]]);
+  };
+
+  if (format === 'ascii') {
+    const bodyLines = decodeUtf8(bytes.subarray(bodyOffset)).split(/\r?\n/);
+    let cursor = 0;
+    for (let i = 0; i < vertexElement.count; i += 1) {
+      while (cursor < bodyLines.length && !bodyLines[cursor].trim()) cursor += 1;
+      if (cursor >= bodyLines.length) throw new Error('PLY 顶点数据不足');
+      const parts = bodyLines[cursor].trim().split(/\s+/);
+      cursor += 1;
+      const point = [0, 0, 0];
+      let axis = 0;
+      for (const property of vertexElement.properties) {
+        const value = Number(parts.shift());
+        if (property.name === 'x') point[0] = value;
+        else if (property.name === 'y') point[1] = value;
+        else if (property.name === 'z') point[2] = value;
+        axis += 1;
+        void axis;
+      }
+      vertices.push(point);
+    }
+    for (let i = 0; i < faceElement.count; i += 1) {
+      while (cursor < bodyLines.length && !bodyLines[cursor].trim()) cursor += 1;
+      if (cursor >= bodyLines.length) break;
+      const parts = bodyLines[cursor].trim().split(/\s+/).map(Number);
+      cursor += 1;
+      const count = parts.shift();
+      const indices = parts.slice(0, count).filter((n) => Number.isInteger(n) && n >= 0 && n < vertices.length);
+      if (indices.length >= 3) parseFace(indices);
+    }
+  } else if (format === 'binary_little_endian' || format === 'binary_big_endian') {
+    const view = new DataView(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+    let offset = bodyOffset;
+    for (let i = 0; i < vertexElement.count; i += 1) {
+      const point = [0, 0, 0];
+      for (const property of vertexElement.properties) {
+        if (property.list) throw new Error('不支持顶点里的 list 属性');
+        const read = readPlyNumber(view, offset, property.type, littleEndian);
+        if (!read) throw new Error(`不支持的 PLY 类型 ${property.type}`);
+        offset += read.size;
+        if (property.name === 'x') point[0] = read.value;
+        else if (property.name === 'y') point[1] = read.value;
+        else if (property.name === 'z') point[2] = read.value;
+      }
+      vertices.push(point);
+    }
+    for (let i = 0; i < faceElement.count; i += 1) {
+      const listProp = faceElement.properties.find((property) => property.list);
+      if (!listProp) break;
+      const countRead = readPlyNumber(view, offset, listProp.countType, littleEndian);
+      if (!countRead) throw new Error(`不支持的 PLY 计数类型 ${listProp.countType}`);
+      offset += countRead.size;
+      const indices = [];
+      for (let j = 0; j < countRead.value; j += 1) {
+        const read = readPlyNumber(view, offset, listProp.type, littleEndian);
+        if (!read) throw new Error(`不支持的 PLY 索引类型 ${listProp.type}`);
+        offset += read.size;
+        if (read.value >= 0 && read.value < vertices.length) indices.push(read.value);
+      }
+      if (indices.length >= 3) parseFace(indices);
+    }
+  } else {
+    throw new Error(`不支持的 PLY 格式 ${format}`);
+  }
+  return buildMesh(vertices, faces);
+}
+
 export function convertModel(buffer, from, to) {
-  if (from === 'stl' && to === 'obj') {
-    return meshToObj(parseStl(buffer), 'stl-model');
-  }
-  if (from === 'obj' && to === 'stl') {
-    const text = decodeUtf8(new Uint8Array(buffer));
-    return meshToStl(parseObj(text), 'obj-model');
-  }
+  const mesh = from === 'stl' ? parseStl(buffer)
+    : from === 'obj' ? parseObj(decodeUtf8(new Uint8Array(buffer)))
+      : parsePly(buffer);
+  if (to === 'obj') return meshToObj(mesh, `${from}-model`);
+  if (to === 'stl') return meshToStl(mesh, `${from}-model`);
+  if (to === 'ply') return meshToPly(mesh, `${from}-model`);
   throw new Error(`暂不支持 ${from.toUpperCase()} → ${to.toUpperCase()}`);
 }

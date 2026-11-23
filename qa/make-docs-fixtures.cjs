@@ -3,6 +3,7 @@ const path = require('path');
 const JSZip = require('../public/tools/vendor/jszip.min.js');
 const XLSX = require('../public/tools/vendor/xlsx.full.min.js');
 const { PDFDocument, StandardFonts, rgb } = require('../public/tools/vendor/pdf-lib.min.js');
+const sharp = require('sharp');
 
 const outDir = path.join(__dirname, 'docs-fixtures');
 fs.mkdirSync(outDir, { recursive: true });
@@ -47,6 +48,7 @@ function makeXlsx() {
   const ws = XLSX.utils.aoa_to_sheet([['姓名', '专业', '绩点'], ['孙志昊', '物联网工程', '3.83'], ['测试', '计算机', '3.5']]);
   XLSX.utils.book_append_sheet(wb, ws, '成绩');
   write('sample.xlsx', XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  write('sample.ods', XLSX.write(wb, { type: 'buffer', bookType: 'ods' }));
 }
 
 async function makePptx() {
@@ -121,12 +123,144 @@ f 2 3 4
 `);
 }
 
-(async () => {
+async function makeRasterFormats() {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" fill="#d7ff4f"/><text x="12" y="58" font-size="22" fill="#060809">RASTER</text></svg>');
+  await sharp(svg).png().toFile(path.join(outDir, 'sample.png'));
+  await sharp(svg).jpeg({ quality: 90 }).toFile(path.join(outDir, 'sample.jpg'));
+  await sharp(svg).webp({ quality: 90 }).toFile(path.join(outDir, 'sample.webp'));
+  write('sample.gif', Buffer.from('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', 'base64'));
+}
+
+async function makeCbz() {
+  const zip = new JSZip();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  zip.file('001.png', png);
+  zip.file('002.png', png);
+  zip.file('info.txt', 'comic');
+  write('sample.cbz', await zip.generateAsync({ type: 'nodebuffer' }));
+}
+
+function makeTextFixtures() {
+  write('sample.json', '[\n  {"姓名":"孙志昊","专业":"物联网工程","绩点":3.83},\n  {"姓名":"测试","专业":"计算机","绩点":3.5}\n]\n');
+  write('sample.csv', '姓名,专业,绩点\n孙志昊,物联网工程,3.83\n测试,计算机,3.5\n');
+  write('sample.yaml', 'name: 孙志昊\nmajor: 物联网工程\nskills:\n  - 嵌入式\n  - 前端\n');
+  write('sample.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<root><user><name>孙志昊</name><major>物联网工程</major></user></root>');
+  write('sample.ini', '[user]\nname=孙志昊\nmajor=物联网工程\n[meta]\nenabled=true\n');
+  write('sample.tsv', '姓名\t专业\t绩点\n孙志昊\t物联网工程\t3.83\n测试\t计算机\t3.5\n');
+  write('sample.ndjson', '{"姓名":"孙志昊","专业":"物联网工程"}\n{"姓名":"测试","专业":"计算机"}\n');
+  write('sample.html', '<html><head><title>测试页</title></head><body><h1>市场调查</h1><p>这是 <b>HTML</b> 转 Markdown 的测试。</p><ul><li>第一项</li><li>第二项</li></ul></body></html>');
+  write('sample.md', '# 市场调查\n\n这是一段 **Markdown** 测试。\n\n- 第一项\n- 第二项\n');
+  write('sample.txt', '第一段纯文本。\n\n第二段纯文本。\n');
+  write('sample.fb2', `<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+<description><title-info><book-title>测试 FB2</book-title></title-info></description>
+<body><section><title><p>第一章</p></title><p>这是 FB2 电子书的第一段。</p><p>第二段内容。</p></section></body>
+</FictionBook>`);
+  write('sample.ply', `ply
+format ascii 1.0
+element vertex 4
+property float x
+property float y
+property float z
+element face 4
+property list uchar int vertex_indices
+end_header
+0 0 0
+1 0 0
+0 1 0
+0 0 1
+3 0 1 2
+3 0 1 3
+3 0 2 3
+3 1 2 3
+`);
+  write('sample.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" fill="#d7ff4f"/><text x="12" y="58" font-size="22" fill="#060809">SVG TEST</text></svg>');
+}
+
+function makeWav() {
+  const sampleRate = 8000;
+  const seconds = 0.4;
+  const samples = Math.floor(sampleRate * seconds);
+  const dataBytes = samples * 2;
+  const buffer = Buffer.alloc(44 + dataBytes);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataBytes, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataBytes, 40);
+  for (let i = 0; i < samples; i += 1) {
+    const value = Math.round(Math.sin((i / sampleRate) * Math.PI * 2 * 440) * 0.35 * 32767);
+    buffer.writeInt16LE(value, 44 + i * 2);
+  }
+  write('sample.wav', buffer);
+}
+
+function makeBmp() {  const width = 2;
+  const height = 2;
+  const rowSize = Math.ceil((width * 3) / 4) * 4;
+  const pixelBytes = rowSize * height;
+  const buffer = Buffer.alloc(54 + pixelBytes);
+  buffer.write('BM', 0);
+  buffer.writeUInt32LE(buffer.length, 2);
+  buffer.writeUInt32LE(54, 10);
+  buffer.writeUInt32LE(40, 14);
+  buffer.writeInt32LE(width, 18);
+  buffer.writeInt32LE(height, 22);
+  buffer.writeUInt16LE(1, 26);
+  buffer.writeUInt16LE(24, 28);
+  buffer.writeUInt32LE(pixelBytes, 34);
+  buffer.writeInt32LE(2835, 38);
+  buffer.writeInt32LE(2835, 42);
+  const colors = [[215, 255, 79], [6, 8, 9], [255, 255, 255], [0, 0, 0]];
+  let offset = 54;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b] = colors[(y * width + x) % colors.length];
+      buffer[offset] = b; buffer[offset + 1] = g; buffer[offset + 2] = r;
+      offset += 3;
+    }
+    offset += rowSize - width * 3;
+  }
+  write('sample.bmp', buffer);
+}
+
+function makeIco() {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(1, 4);
+  const entry = Buffer.alloc(16);
+  entry[0] = 1; entry[1] = 1; entry[2] = 0; entry[3] = 0;
+  entry.writeUInt16LE(1, 4);
+  entry.writeUInt16LE(32, 6);
+  entry.writeUInt32LE(png.length, 8);
+  entry.writeUInt32LE(22, 12);
+  write('sample.ico', Buffer.concat([header, entry, png]));
+}
+
+async function makeAll() {
   await makePdf();
   await makeDocx();
   makeXlsx();
   await makePptx();
   await makeEpub();
   makeModels();
+  await makeCbz();
+  await makeRasterFormats();
+  makeTextFixtures();
+  makeWav();
+  makeBmp();
+  makeIco();
   console.log('fixtures:', fs.readdirSync(outDir).join(', '));
-})().catch((err) => { console.error(err); process.exit(1); });
+}
+
+makeAll().catch((err) => { console.error(err); process.exit(1); });
