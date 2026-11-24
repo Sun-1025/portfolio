@@ -13,7 +13,7 @@ ai-server/
     api/chat/route.ts   # POST /api/chat，SSE、CORS、限流、错误降级
     layout.tsx
     page.tsx
-  profile.json          # 事实表，contact 含 email / github / gitee / wechat
+  profile.json          # 事实表，contact 含 email / qq / github / gitee / wechat
   .env.example
   package.json
   tsconfig.json
@@ -103,7 +103,7 @@ npx vercel --prod
 ## 防护与降级
 
 - 按 `x-forwarded-for` / `x-real-ip` 限流 10 次/小时，进程内存计数；多实例部署时换成 Redis/Upstash。
-- 超过 10 次返回 429 和固定话术，仍带四条联系方式。
+- 超过 10 次返回 429 和固定话术，仍带五条联系方式。
 - 上游不可达、未配置、空响应都返回 5xx；前端捕获后使用本地事实回答。
 - `messages` 只保留最近 20 条（10 轮），单条截断到 800 字。
 - `max_tokens: 600`，`temperature: 0.4`。

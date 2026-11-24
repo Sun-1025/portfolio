@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-label="图书管理系统线稿">
+  <defs>
+    <radialGradient id="bg" cx="55%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#18232b"/>
+      <stop offset="1" stop-color="#0a0c0f"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7794a8"/>
+      <stop offset="1" stop-color="#c7d6e0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#line)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".9">
+    <rect x="430" y="250" width="300" height="370" rx="16"/>
+    <path d="M430 320h300M430 390h300M430 460h300M430 530h300"/>
+    <path d="M490 250v370M670 250v370" opacity=".45"/>
+    <path d="M470 220h180v30H470z" opacity=".65"/>
+    <path d="M300 620h600" stroke-width="1.2" opacity=".45"/>
+  </g>
+  <text x="600" y="690" text-anchor="middle" fill="#9fb4c7" font-family="IBM Plex Mono, monospace" font-size="20" letter-spacing="6">C / SQL SERVER</text>
+</svg>

@@ -1,145 +1,106 @@
-# 孙志昊 · 个人站 4.0
+# 孙志昊 · 个人站 5.0
 
-个人主页 + 在线工具 + 可视化后台，保留原版 3D 场景页作为「经典版」。
+> 技术名片 + 成长档案 + 自研小工具。保留路由、主题切换、留言、工具箱、CMS 后台逻辑。
 
-4.0 采用 **工程仪表 + 编辑式排版**：近黑深空底、酸性信号绿与冰青信号色、72px 顶栏、六级字号层级、磨砂玻璃 3D 主视觉与克制动效。完整的设计与验收记录见 `docs/design-v4.md`、`docs/checklist-v4.md`。
+线上：<https://sunzhihaoai.top>　经典版归档：<https://sunzhihaoai.top/classic/>
 
-> **iOS 27 日间玻璃（2026-11-23）**：浅色模式新增独立覆盖层 `public/assets/css/app-ios27.css`，提供 `blur(22px)` + 低饱和白 tint + 0.5px 白内描边 + 柔和落影；深色模式不加载任何 iOS27 规则，完整保留 v4 原版。材质参数见 `docs/material-ios27-light-glass.md`，巡检记录见 `docs/audit-ios27.md`。经典版 `/classic/` 与后台 `/admin/` 未接该覆盖层。
+## 5.0 改了什么
 
-## 视觉系统
+- 从终端极客风 v4 改为极简科技：近黑底、蓝灰点缀、克制的磨砂玻璃；浅色主题同步可用。
+- 导航一级收为 **实习、经历、兴趣**；项目放进经历，工具箱保留独立入口。
+- 首页四张项目卡：个人主页、在线工具箱、家用语音监测系统、图书管理系统；公益实践单独一张卡。
+- 经历时间线四段：校内预备实习、东营区图书馆、青年志愿者协会、科技协会。
+- 兴趣六格：骑行、羽毛球、登山、北京、淄博、济南；接入 21 张真实照片。
+- 25 张公开 WebP，全部在 `public/assets/photos/`；理财截图不公开，儿童正脸不公开。
+- 静态站 62 files / 9.66 MB（构建后 `dist`）；照片单张 ≤500 KB。
 
-- 主色：`#070908` 近黑 / `#d6f36a` 酸性信号绿 / `#7ce9d5` 冰青遥测色；浅色 `#f1f0e7` / `#5c7900` / `#087c72`
-- 字体：IBM Plex Sans（正文与标题）+ IBM Plex Mono（标签、数据、代码）+ Noto Sans SC（中文回退）
-- 间距：以 4px 为基础节奏；卡片、面板、导航统一圆角、边框与阴影层级
-- 字号：正文 16.5–18px，导航 16.5px / 500，全站硬下限 12px；首页 Hero 为 66–82px 展示级
-- 首页主视觉：磨砂玻璃信号核心 `signal-core.webp`；三个核心项目封面为同材质 1200×800 WebP；`/classic/` 原场景入口仍保留
-- AI 助手：56×56 双主题 SVG 浮标，终端提示符 + 信号脉冲，面板 420px，移动端底部抽屉
+硬参数：桌面导航 72px、移动 68px；桌面 H1 40px、移动 32px；正文 16px / 1.7；标签 13px；磨砂只用于导航、卡片、弹层、抽屉、助手面板，`blur(22px)`。
 
 ## 快速启动
 
 ```powershell
 cd C:\Users\sun\OneDrive\Desktop\实习\portfolio-v2
 npm install
-npm start           # 默认 http://localhost:8080
+npm start           # http://localhost:8080
 ```
 
-首次启动会自动生成默认管理员 `admin` / `Admin@12345`。如需重置密码：
+首次启动会生成默认管理员 `admin` / `Admin@12345`。首次登录后请立即改密码；生产环境不要把默认密码留在 README 之外。
+
+## 构建与部署
 
 ```powershell
-npm run init -- admin 你的新密码
+npm run build       # Tailwind + 静态导出到 dist/
+npm run export      # 只导出静态站
 ```
 
-默认管理员：`admin` / `Admin@12345`。首次登录后，请立即到「账号设置」修改密码。
+`dist/` 可直接放到 GitHub Pages、Gitee Pages 或任意静态主机。根域名仓库直接推 `dist` 内容；项目子路径用：
 
-## 目录结构
+```powershell
+npm run export -- --base=/repo/
+```
+
+当前 GitHub Pages 仓库 `Sun-1025/Sun-1025.github.io`，自定义域名 `sunzhihaoai.top`，CNAME 已保留。仓库内提供 `sync/deploy-v5-pages.ps1`（全量构建包 + 保留 CNAME）与 `sync/clean-pages.ps1`（清理旧文件）。
+
+## 路由
+
+| 路由 | 内容 |
+|---|---|
+| `#/` | 首页：Hero、四张项目卡、公益实践、关于、联系 |
+| `#/internship` | 实习：校内预备实习、东营区图书馆 |
+| `#/experience` | 经历：四个项目、公益实践、四段时间线、校园组织 |
+| `#/interest` | 兴趣六格 |
+| `#/interest/:id` | 兴趣详情（骑行 / 羽毛球 / 登山 / 北京 / 淄博 / 济南） |
+| `#/work/:id` | 项目详情（case-site / case-tools / case-voice / case-lib / case-physics） |
+| `#/tools` | 工具箱 |
+| `#/tools/:id` | 单个工具 |
+| `/classic/` | 经典版归档页 |
+
+`#/work` 无 id 时回退到 `#/experience`。
+
+## 目录
 
 ```
 portfolio-v2/
-├─ server.js                 Express 入口
-├─ src/
-│  ├─ auth.js                JWT / Cookie / 登录限流 / 会话过期
-│  ├─ store.js               JSON 内容库、原子写入、自动备份
-│  └─ routes/
-│     ├─ auth.js             登录、退出、会话信息、改密
-│     ├─ content.js          内容读取 / 保存 / 备份恢复
-│     ├─ upload.js           图片上传与媒体库
-│     └─ events.js           SSE 内容更新推送
+├─ data/site.json             站点内容（site/nav/branches/home/work/interests/tools/ai/notices/settings）
 ├─ public/
-│  ├─ index.html             前台 SPA 壳
-│  ├─ assets/css/app.css     新版主站样式
-│  ├─ assets/js/app.js       路由、渲染、主题、SSE
-│  ├─ admin/                 后台入口
-│  ├─ assets/css/admin.css   后台样式
-│  ├─ assets/js/admin.js     后台逻辑
-│  ├─ classic/               经典版（原 3D 场景页）
-│  ├─ tools/                 可插拔工具模块
-│  └─ uploads/               后台上传的图片
-├─ data/
-│  ├─ site.json              站点内容库
-│  ├─ users.json             管理员账号
-│  └─ backups/               每次保存自动备份
-├─ scripts/
-│  ├─ init-admin.js          初始化管理员
-│  └─ export-static.js       GitHub Pages / Cloudflare Pages 静态导出
-├─ docs/                     后台手册、部署、扩展、模板选型
-└─ deploy/                   启动/停止/开机自启脚本与反向代理示例
+│  ├─ index.html              前台 SPA 壳
+│  ├─ assets/css/app-v5.css   V5 视觉系统（最后加载）
+│  ├─ assets/js/app.js        路由与页面渲染
+│  ├─ assets/js/ai-dock.js    本地事实库 + 可选远程 AI
+│  ├─ assets/photos/          25 张公开 WebP + _manifest.json
+│  ├─ assets/covers/          四张项目线稿封面
+│  ├─ classic/index.html      经典版归档
+│  ├─ tools/                  工具箱模块与按需加载的 vendor
+│  └─ admin/                  CMS 后台
+├─ ai-server/                 可选 Next.js AI 代理（当前前端 endpoint 为空，走本地事实回退）
+├─ scripts/                   静态导出、初始化管理员等
+├─ sync/                      Pages 部署 / 清理脚本
+└─ docs/v5/                   交付文档
 ```
 
-## 双分支
+## 留言与后台
 
-| 分支 | 入口 | 说明 |
-|---|---|---|
-| 个人主页 | `#/` / `#/work` | Hero、关于、项目、技能、经历、联系 |
-| 在线工具 | `#/tools` | 文件转换台（99 条真实路径）+ Markdown、字数、单位、日期四个小工具 |
-| 经典版 | `/classic/` | 原版 3D 黑板场景，完整保留 |
+- 源服务（Express）模式：留言写 `/api/guestbook`，页脚显示后台入口。
+- 静态站模式：`window.SZH_GUESTBOOK_ENDPOINT=''`，留言提交回退到邮箱 `mailto`；后台入口自动隐藏。
 
-顶部导航统一；后台可控制分支显示/隐藏与导航排序。前台路由也会遵守分支隐藏开关。
+后台 `/admin/` 只在源服务下使用；内容保存写入 `data/site.json`，每次保存自动备份到 `data/backups/`（最多 30 份）。`data/.jwt-secret`、`data/users.json`、`data/backups/` 不要提交到公开仓库。
 
-## 在线工具
+## AI 助手
 
-`#/tools` 内置文件转换台，全部在浏览器本地完成，不上传文件。当前开放 99 条真实转换路径：
+`public/assets/js/ai-dock.js` 内置本地事实库，`ai.endpoint` 为空时完全本地回答；面板里的快捷问题为「你在做什么项目 / 会哪些技术 / 能实习吗」。远程入口配置后才会请求服务端；服务端不可达时自动回退到本地事实。
 
-- 图片：PNG / JPG / JPEG / WebP / GIF / BMP / SVG / ICO 转为 PNG、JPG、WebP 或 PDF；GIF 只取首帧，SVG 栅格化。
-- 数据：JSON ↔ CSV / TXT / XLSX / XML / YAML / INI / TSV / NDJSON；CSV ↔ JSON / TXT / XLSX / TSV / YAML；YAML / XML / INI / TSV / NDJSON → JSON / TXT；Markdown ↔ HTML / TXT；TXT → HTML；HTML → TXT / Markdown。
-- 音频：MP3 / OGG / OGA / M4A / AAC / FLAC / WAV 解码后导出 WAV 或 MP3。
-- PDF：PDF → TXT / PNG / JPG；多页转图片会打包成 ZIP。
-- Office：DOCX → HTML / TXT / Markdown；XLSX / XLS / ODS → CSV / JSON / HTML / TSV；PPTX → TXT / HTML；CSV / JSON → XLSX。
-- 电子书：EPUB / FB2 → HTML / TXT / Markdown；CBZ 漫画 → PDF。
-- 3D：STL / OBJ / PLY 三角网格互换。
+## 图片与隐私
 
-PDF、Office、电子书、YAML、Markdown 和 PDF 生成使用按需加载的开源库（PDF.js、pdf-lib、Mammoth、SheetJS、JSZip、js-yaml、Turndown、lamejs），打开工具页时不下载。视频转码需要 FFmpeg 引擎，当前不开放；PDF 扫描件没有 OCR，只能提取已有文字层；Office 不提供 DOCX 转 PDF 的版式保真转换；MOBI / AZW3、GLB / GLTF、HEIC / TIFF 等格式暂不开放，也不会伪造转换成功。单文件上限：图片 60 MB、数据 10 MB、音频/PDF 80 MB、Office/电子书/3D 40 MB；PDF 转图片最多 80 页。
-
-## 站内 AI 分身
-
-首页右下角的 `>` 是终端入口，面板标题 `~/sunzhihao $ ask`。前端是 `public/assets/js/ai-dock.js`，在 `app.js` 里初始化；后端不可达或限流时自动回退到站点事实。
-
-线上代理：`https://ai.sunzhihaoai.top/api/chat`（Vercel 项目 `sunzhihaoai-ai`，自定义域名 CNAME 到 Vercel）。线上模型使用 Agnes AI 的 `agnes-3.0-flash`，Base URL 为 `https://apihub.agnes-ai.com/v1`；密钥只放 Vercel 服务端环境变量，浏览器拿不到。
-
-后端是独立的 Next.js 应用 `ai-server/`，只暴露 `POST /api/chat`。完整说明、环境变量和部署步骤见 [ai-server/README.md](ai-server/README.md)。
-
-```powershell
-cd ai-server
-Copy-Item .env.example .env.local
-npm install
-npm run dev
-```
-
-`public/index.html` 的 `window.SZH_AI_ENDPOINT` 与 `data/site.json` 的 `ai.endpoint` 都指向 `https://ai.sunzhihaoai.top/api/chat`。GitHub Pages 不能运行 Route Handler，AI 代理必须单独部署，或把静态站改成同源 Express 服务。
-
-## 常用命令
-
-```powershell
-npm run dev                  # 文件变动自动重启
-npm run export               # 导出静态站到 dist/
-npm run export -- --base=/repo/   # 导出到 GitHub Pages 子路径
-```
-
-导出后，`dist/` 可整体上传到 GitHub Pages、Cloudflare Pages 或任意静态主机。
-
-## 数据与备份
-
-- 内容：`data/site.json`
-- 管理员：`data/users.json`（bcrypt 哈希）
-- JWT 密钥：`data/.jwt-secret`（首次启动自动生成，**不要提交到公开仓库**）
-- 每次保存自动复制到 `data/backups/`，保留最近 30 份；后台「备份恢复」可一键回滚。
+- 公开 25 张：项目 2、校园 2、兴趣 21；均为 WebP，长边 ≤1600，单张 ≤500 KB。
+- 公益课两张：封面只保留屏幕、教师和背影；第二张裁成手 / 桌面 / 桌腿，无儿童正脸。
+- 科协图已裁掉奖状墙；青协图只保留孙志昊本人可识别正脸。
+- 理财 11 张截图不复制、不部署；原因见 `docs/v5/06-not-public.md`。
 
 ## 文档
 
-- [后台使用手册](docs/后台使用手册.md)
-- [v4 巡检记录](docs/audit-v4.md)
-- [v4 设计说明](docs/design-v4.md)
-- [v4 文案稿](docs/copy-v4.md)
-- [v4 响应式记录](docs/responsive-v4.md)
-- [v4 AI Logo 规范](docs/ai-logo-spec.md)
-- [v4 终检清单](docs/checklist-v4.md)
-- [架构说明](docs/架构说明.md)
-- [内网部署与访问加速](docs/内网部署与访问加速.md)
-- [扩展开发指南](docs/扩展开发指南.md)
-- [模板选型记录](docs/模板选型.md)
-
-## 安全提醒
-
-1. 上线前必须修改默认管理员密码。
-2. 不要把 `data/.jwt-secret`、`data/users.json`、`data/backups/` 提交到公开仓库。
-3. 后台只建议在局域网 / Tailscale 内访问；如需公网访问，请加 HTTPS 与反向代理，并限制 `/admin` 来源。
-4. 上传白名单已排除 SVG，避免存储型 XSS。
+- [改动清单](docs/v5/01-change-list.md)
+- [部署与代码说明](docs/v5/02-deploy.md)
+- [图片落位对照表](docs/v5/03-image-map.md)
+- [全部板块文案](docs/v5/04-copy.md)
+- [自检报告](docs/v5/05-self-check.md)
+- [不建议公开的素材](docs/v5/06-not-public.md)

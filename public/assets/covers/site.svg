@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-label="个人主页线稿">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0" stop-color="#17222b"/>
+      <stop offset="1" stop-color="#0a0c0f"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <g fill="none" stroke="#9fb4c7" stroke-width="2.2" opacity=".85">
+    <rect x="300" y="180" width="600" height="380" rx="16"/>
+    <path d="M300 236h600"/>
+    <circle cx="332" cy="208" r="5" fill="#9fb4c7"/><circle cx="352" cy="208" r="5" fill="#9fb4c7"/><circle cx="372" cy="208" r="5" fill="#9fb4c7"/>
+    <rect x="340" y="286" width="220" height="16" rx="8"/>
+    <rect x="340" y="322" width="410" height="10" rx="5" opacity=".5"/>
+    <rect x="340" y="350" width="370" height="10" rx="5" opacity=".5"/>
+    <rect x="340" y="398" width="120" height="38" rx="19" fill="#9fb4c7" stroke="none" opacity=".8"/>
+    <rect x="790" y="286" width="64" height="64" rx="14"/>
+  </g>
+  <text x="600" y="660" text-anchor="middle" fill="#9fb4c7" font-family="IBM Plex Mono, monospace" font-size="20" letter-spacing="6">SITE / STATIC PAGES</text>
+</svg>

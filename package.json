@@ -1,8 +1,8 @@
 {
   "name": "portfolio-v2",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "private": true,
-  "description": "个人网站 3.0：Signal 控制台视觉 + 个人主页 + 在线工具 + 可视化后台",
+  "description": "个人网站 5.0：极简科技 + 成长档案 + 自研工具",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,8 +1,4 @@
-/* ============================================================
-   AI dock：右下角终端浮标 / 流式问答 / 本地事实降级
-   后端地址由 window.SZH_AI_ENDPOINT 或 site.json 的 ai.endpoint 注入
-   ============================================================ */
-
+/* AI dock：右下角助手 / 流式问答 / 本地事实降级 */
 const CONTACT_TEXT = '邮箱 1322816531@qq.com ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密。GitHub 或 Gitee 仓库开 Issue 也能联系。';
 const CONTACT_LOCAL_RE = /联系|邮箱|邮件|QQ|微信|github|gitee|issue|合作|找我|实习|工作|招聘|岗位|入职|offer/i;
 
@@ -12,29 +8,32 @@ const FALLBACKS = [
     answer: CONTACT_TEXT
   },
   {
-    test: /项目|作品|做过|开发|系统|语音|图书/i,
-    answer: '我最近在做家用智能语音监测项目的 APP 端和联调，也在维护这个站点和转换工具台。图书管理系统是我独立写的，从需求到测试交付都自己走了一遍。想看细节，可以翻项目页。'
+    test: /项目|作品|做过|开发|系统|语音|图书|工具箱|主页|网站/i,
+    answer: '现在在做个人主页、在线工具箱、家用语音监测系统和图书管理系统，还有一门「小小物理学家探险队」公益课。本站和工具箱是我自己写的；语音监测主要做整体串联和调试；图书管理用 C 语言，数据放在 SQL Server。'
   },
   {
-    test: /技术|技能|会什么|栈|嵌入式|esp32|c\+\+|python|sql/i,
-    answer: '我常用 C 和 C++，做 ESP32 和嵌入式；Python 用来处理数据和画图，SQL Server 用来建库查询。Git 和 AI 工具也在用，遇到新芯片会先翻手册。'
+    test: /技术|技能|会什么|栈|嵌入式|物联网|sql|c\+\+|c 语言|python|ai|agent/i,
+    answer: '已掌握 SQL Server、C 语言、C++，其余在学。方向是嵌入式、物联网系统，也在学 AI / Agent 应用。没写进「已掌握」的东西，就是还在补。'
   },
   {
     test: /实习|工作|招聘|岗位|入职|offer/i,
-    answer: '我是学院预备实习，开放实习，方向偏嵌入式、ESP32 和 AI 应用。具体时间、地点和岗位可以邮件聊；' + CONTACT_TEXT
+    answer: '开放实习，方向偏嵌入式、物联网，也愿意做 AI / Agent 应用。具体时间、地点和岗位可以邮件聊；' + CONTACT_TEXT
   },
   {
-    test: /学校|专业|绩点|年级|成绩|排名/i,
-    answer: '我在山东石油化工学院读物联网工程，2025 级大二，绩点 3.83/5.0，专业前 20%。'
+    test: /学校|专业|年级|绩点|成绩|排名|哪里人|坐标/i,
+    answer: '山东石油化工学院，2025 级物联网工程，现在在东营。绩点和排名不在公开页写，想了解可以邮件问。'
   },
   {
-    test: /你是谁|介绍|孙志昊|本人|经历/i,
-    answer: '我是孙志昊，河北承德人，在山东石油化工学院读物联网工程。这个站放我的项目、工具和记录。'
+    test: /你是谁|介绍|孙志昊|本人|经历|特点/i,
+    answer: '我是孙志昊，山东石油化工学院 2025 级物联网工程。对外只说三个特点：踏实、进步、真诚。座右铭是「无限进步」。'
+  },
+  {
+    test: /兴趣|骑行|羽毛球|登山|北京|淄博|济南|照片/i,
+    answer: '兴趣页有骑行、羽毛球、登山，还有北京、淄博、济南三组照片。骑行有公路和绿道，羽毛球偏爱双打，登山走到山顶就下。'
   }
 ];
 
-const UNKNOWN_ANSWER = '我只答这个站点上的事。你可以问我项目、技术栈或实习安排；要联系我，' + CONTACT_TEXT;
-
+const UNKNOWN_ANSWER = '我只回答这个站上公开的事实。项目、技术栈、实习安排、兴趣照片都能问；要直接联系，' + CONTACT_TEXT;
 const RATE_LIMIT_TEXT = '问得有点快，休息一下再来。需要直接联系的话，' + CONTACT_TEXT;
 
 function fallbackAnswer(question) {
@@ -55,11 +54,18 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const LOGO_SVG = `<svg viewBox="0 0 56 56" aria-hidden="true">
+  <rect x="8" y="9" width="40" height="34" rx="10" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".9"/>
+  <path d="M17 43v6l8-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" opacity=".9"/>
+  <circle cx="21" cy="26" r="2.4" fill="currentColor" opacity=".7"/>
+  <circle cx="28" cy="26" r="2.4" fill="currentColor" opacity=".7"/>
+  <circle cx="35" cy="26" r="2.4" fill="var(--accent, #a9c2d6)"/>
+  <path d="M18 35c5 4 15 4 20 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>
+</svg>`;
+
 function makeDock(contacts, facts, quick) {
   const contactLine = contacts.map((c) => `${escapeHtml(c.label)} ${escapeHtml(c.value)}`).join(' ｜ ');
-  const quickItems = quick.length
-    ? quick
-    : ['你在做什么项目', '会哪些技术', '能实习吗'];
+  const quickItems = quick.length ? quick : ['你在做什么项目', '会哪些技术', '能实习吗'];
 
   const dock = document.createElement('div');
   dock.className = 'ai-dock';
@@ -67,46 +73,33 @@ function makeDock(contacts, facts, quick) {
     <section class="ai-panel" id="aiPanel" role="dialog" aria-label="孙志昊的 AI 助手" hidden>
       <header class="ai-panel-head">
         <span class="ai-panel-id">
-          <svg class="ai-panel-mark" viewBox="0 0 64 64" aria-hidden="true">
-            <rect x="8.5" y="8.5" width="47" height="47" rx="13.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity=".45"/>
-            <path d="M23 22.5 35.5 32 23 41.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="45.5" cy="18.5" r="3.2" fill="var(--accent-2, #7ce9d5)"/>
-          </svg>
-          <span>~/sunzhihao <strong>$</strong> ask</span>
+          <span class="ai-panel-mark">${LOGO_SVG}</span>
+          <span><strong>SZH</strong> / ASK</span>
         </span>
         <span class="ai-status" id="aiStatus"><i></i><span>READY</span></span>
         <button class="ai-close" type="button" aria-label="关闭 AI 面板">×</button>
       </header>
       <div class="ai-log" id="aiLog" role="log" aria-live="polite">
         <article class="ai-msg ai-msg--bot">
-          <span class="ai-msg-label">SZH / AI</span>
-          <p>我是孙志昊的 AI 助手。项目、技术栈、实习安排，问我就行。我只答这个站点上的事，不编造。</p>
+          <span class="ai-msg-label">孙志昊 / AI</span>
+          <p>我是孙志昊，这个站上的 AI 助手。项目、技术栈、实习安排都能问；不确定的我会直说。</p>
         </article>
       </div>
       <div class="ai-quick">
         ${quickItems.map((q) => `<button type="button" data-question="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('')}
       </div>
       <form class="ai-form" id="aiForm">
-        <span class="ai-form-prompt" aria-hidden="true">&gt;</span>
+        <span class="ai-form-prompt" aria-hidden="true">›</span>
         <input class="ai-input" id="aiInput" type="text" maxlength="300" autocomplete="off" placeholder="输入问题，回车发送" aria-label="输入问题" />
         <button class="ai-send" type="submit" aria-label="发送">↵</button>
       </form>
-      <div class="ai-hint">
-        ${contactLine || CONTACT_TEXT}<br>
-        仓库开 Issue 也能联系。回答只来自本站公开信息。
-      </div>
+      <div class="ai-hint">${contactLine || CONTACT_TEXT}<br>回答只来自站上公开信息；不确定的问题会直接说不确定。</div>
     </section>
     <button class="ai-fab" id="aiFab" type="button" aria-label="打开 AI 助手" aria-expanded="false" aria-controls="aiPanel">
       <span class="ai-fab-ring" aria-hidden="true"></span>
-      <svg class="ai-fab-mark" viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="8.5" y="8.5" width="47" height="47" rx="13.5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-opacity=".38"/>
-        <path d="M23 22.5 35.5 32 23 41.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M41 18.5v27" stroke="var(--accent-2, #7ce9d5)" stroke-width=".9" stroke-opacity=".35"/>
-        <circle cx="45.5" cy="18.5" r="3.2" fill="var(--accent-2, #7ce9d5)"/>
-      </svg>
+      <span class="ai-fab-mark">${LOGO_SVG}</span>
       <span class="sr-only">AI 助手</span>
-    </button>
-  `;
+    </button>`;
 
   document.body.appendChild(dock);
 
@@ -122,21 +115,14 @@ function makeDock(contacts, facts, quick) {
 
   const history = [];
   let busy = false;
-  let openedOnce = false;
 
   function setOpen(open) {
     panel.hidden = !open;
     fab.setAttribute('aria-expanded', String(open));
-    if (open) {
-      openedOnce = true;
-      setTimeout(() => input.focus(), 30);
-      scrollToEnd();
-    }
+    if (open) { setTimeout(() => input.focus(), 30); scrollToEnd(); }
   }
 
-  function scrollToEnd() {
-    log.scrollTop = log.scrollHeight;
-  }
+  function scrollToEnd() { log.scrollTop = log.scrollHeight; }
 
   function appendMessage(role, text) {
     const article = document.createElement('article');
@@ -152,11 +138,11 @@ function makeDock(contacts, facts, quick) {
     return body;
   }
 
-  async function typeText(node, text, speed = 16) {
+  async function typeText(node, text, speed = 4) {
     const chars = Array.from(String(text || ''));
     for (let i = 0; i < chars.length; i += 1) {
       node.textContent += chars[i];
-      if (i % 6 === 0) scrollToEnd();
+      if (i % 8 === 0) scrollToEnd();
       await wait(speed);
     }
     scrollToEnd();
@@ -186,11 +172,7 @@ function makeDock(contacts, facts, quick) {
           if (!data) continue;
           if (data === '[DONE]') return;
           let payload;
-          try {
-            payload = JSON.parse(data);
-          } catch {
-            continue;
-          }
+          try { payload = JSON.parse(data); } catch { continue; }
           if (payload.error) throw new Error(payload.error);
           if (payload.text) onText(payload.text);
         }
@@ -216,11 +198,7 @@ function makeDock(contacts, facts, quick) {
 
     const answerNode = appendMessage('assistant', '');
     let answer = '';
-    const push = (chunk) => {
-      answer += chunk;
-      answerNode.textContent = answer;
-      scrollToEnd();
-    };
+    const push = (chunk) => { answer += chunk; answerNode.textContent = answer; scrollToEnd(); };
 
     const endpoint = endpointUrl();
     setStatus('busy', endpoint ? 'THINKING' : 'LOCAL');
@@ -255,7 +233,7 @@ function makeDock(contacts, facts, quick) {
       const reply = fallbackAnswer(text);
       if (!answer) {
         answer = '';
-        await typeText(answerNode, '后端暂时没连上，我先按站点事实回答。\n\n' + reply, 14);
+        await typeText(answerNode, '后端暂时没连上，我先按站上事实回答。\n\n' + reply, 10);
         answer = reply;
       } else {
         push('\n\n（输出中断，可以再问一次。）');
@@ -272,20 +250,9 @@ function makeDock(contacts, facts, quick) {
 
   fab.addEventListener('click', () => setOpen(panel.hidden));
   close.addEventListener('click', () => setOpen(false));
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    ask(input.value);
-  });
-  quickButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      if (openedOnce) ask(button.dataset.question || '');
-    });
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !panel.hidden) setOpen(false);
-  });
-
-  // 点击面板外部收起；移动端保留抽屉，不因误触关闭
+  form.addEventListener('submit', (event) => { event.preventDefault(); ask(input.value); });
+  quickButtons.forEach((button) => button.addEventListener('click', () => ask(button.dataset.question || '')));
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden) setOpen(false); });
   document.addEventListener('click', (event) => {
     if (panel.hidden) return;
     if (dock.contains(event.target)) return;
@@ -299,7 +266,7 @@ function makeDock(contacts, facts, quick) {
 export function initAiDock({ contacts = [], facts = [], endpoint = '', quick = [] } = {}) {
   if (window.__szhAiDock) return window.__szhAiDock;
   const dock = makeDock(contacts, facts, quick);
-  dock.dataset.endpoint = endpoint || window.SZH_AI_ENDPOINT || '';
+  dock.dataset.endpoint = endpoint || '';
   window.__szhAiDock = dock;
   return dock;
 }
