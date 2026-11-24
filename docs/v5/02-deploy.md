@@ -77,7 +77,7 @@ Invoke-WebRequest https://sunzhihaoai.top/data/site.json -UseBasicParsing
 Invoke-WebRequest https://sunzhihaoai.top/classic/ -UseBasicParsing
 ```
 
-应看到 `app-v5.css`、`孙志昊，做嵌入式与物联网`、`经典版已归档`。
+应看到 `app-v5.css`、`孙志昊`、`经典版已归档`。
 
 ## 5. Gitee Pages
 
