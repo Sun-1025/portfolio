@@ -61,7 +61,7 @@
 - 最终静态包：62 files / 9.66 MB。
 - 新增 `sync/deploy-v5-pages.ps1`：按 62 个文件建 blob，创建不含旧文件的 tree，保留 `CNAME`，提交到 `Sun-1025/Sun-1025.github.io` 的 `main`。
 - 新增 `sync/clean-pages.ps1`：从当前 Pages 树按 `dist` 清单重建干净树，保留 CNAME；本次部署已用它清理旧 v4 文件。
-- 线上 commit：`1e20007655c032af1439a15bc3a8a1813ec03095`（clean static package）。
+- 线上 commit：`8db8f752a2d8a98702c5bb15ab52757ba1163ed1`（clean static package）。
 - 源码仓库 `Sun-1025/portfolio` 已按 V5 全量推送（99 files）；本机无 git，使用 GitHub API 构建干净 tree。
 
 ## 七、事实口径说明

@@ -66,7 +66,7 @@
 ## 7. 线上验收
 
 - 自定义域名：`https://sunzhihaoai.top`，CNAME `sunzhihaoai.top` 保留。
-- 最新 Pages commit：`1e20007655c032af1439a15bc3a8a1813ec03095`（干净树：62 files + CNAME）；此前 `92214cfc...` 已含全量 dist。
+- 最新 Pages commit：`8db8f752a2d8a98702c5bb15ab52757ba1163ed1`（干净树：62 files + CNAME）；此前 `92214cfc...` 已含全量 dist。
 - 线上 `index.html` 引用 `app-v5.css`；`data/site.json` 主标题为「孙志昊」；`physics-02.webp` 200 / 29,516 B；`classic/` 归档页 200。
 - 旧 v4 路径已从仓库树移除；如个别旧 URL 仍因 CDN 缓存短暂 200，不影响站内引用，等待缓存过期即可。
 
