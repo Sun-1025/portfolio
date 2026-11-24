@@ -112,4 +112,4 @@ Invoke-WebRequest https://sunzhihaoai.top/classic/ -UseBasicParsing
 
 - 源码整体备份：`_backup/v5-20261124-1045/`。
 - 旧 v4 素材：`_backup/stale-v4-assets-20261124/`。
-- Pages 历史 commit 可在 GitHub 仓库的 commit 记录里回退；本次新 commit 为 `8db8f752a2d8a98702c5bb15ab52757ba1163ed1`。
+- Pages 历史 commit 可在 GitHub 仓库的 commit 记录里回退；本次新 commit 为 `9fe55c77bfacda1c9d1b90a16c9470d61dd860d5`。

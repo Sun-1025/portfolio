@@ -522,13 +522,13 @@ function renderFoot() {
       <div class="foot-guest-head">
         <div>
           <span class="mini-label">GUESTBOOK / ANON</span>
-          <h3 id="guestbookTitle">留一句，匿名也行。</h3>
+          <h3 id="guestbookTitle">两字留言</h3>
           <p id="guestMode">不用登录。留个昵称，把想说的话写下来。</p>
         </div>
         <span class="foot-guest-count" id="guestCount" hidden></span>
       </div>
       <form class="guest-form" id="guestForm" novalidate>
-        <div class="guest-field guest-field--name"><label for="guestName">昵称</label><input id="guestName" name="nickname" maxlength="20" autocomplete="nickname" placeholder="随便取一个" required></div>
+        <div class="guest-field guest-field--name"><label for="guestName">昵称</label><input id="guestName" name="nickname" maxlength="20" autocomplete="nickname" placeholder="你的昵称" required></div>
         <div class="guest-field guest-field--text"><label for="guestText">留言</label><textarea id="guestText" name="text" maxlength="500" rows="4" placeholder="想说的话，最多 500 字。" required></textarea></div>
         <div class="guest-honeypot" aria-hidden="true"><label>网站<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <div class="guest-actions"><span class="guest-hint" id="guestHint">留个昵称就能写，不需要登录。</span><button type="submit" class="v5-btn v5-btn--primary" id="guestSubmit">发送留言 ${ARROW}</button></div>
