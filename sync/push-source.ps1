@@ -68,7 +68,7 @@ $paths = @(
     'docs/v5/01-change-list.md', 'docs/v5/02-deploy.md', 'docs/v5/03-image-map.md',
     'docs/v5/04-copy.md', 'docs/v5/05-self-check.md', 'docs/v5/06-not-public.md',
     'scripts/export-static.js', 'scripts/init-admin.js',
-    'sync/deploy-v5-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
+    'sync/deploy-v5-pages.ps1', 'sync/deploy-v6-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
 )
 $dirs = @('src', 'public', 'ai-server')
 foreach ($dir in $dirs) {
@@ -112,3 +112,4 @@ $updated = Invoke-GH -Method Patch -Uri "/repos/$Owner/$Repo/git/refs/heads/$Bra
 Write-Output "Tree: $($tree.sha)"
 Write-Output "Commit: $($newCommit.sha)"
 Write-Output "Updated $Branch -> $($updated.object.sha)"
+

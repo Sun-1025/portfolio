@@ -41,6 +41,38 @@ function toast(message) {
 const ARROW = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BACK_ARROW = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+/* 每个子页都先给一条回首页的路，再保留原来的上下文返回。 */
+function backBar(sub) {
+  const extra = sub
+    ? `<a class="v5-back v5-back--sub" href="${safeUrl(sub.href)}">${esc(sub.label)}</a>`
+    : '';
+  return `<div class="v5-backbar"><a class="v5-back" href="#/">${BACK_ARROW} 返回首页</a>${extra}</div>`;
+}
+
+/* ---------------- 动效辅助（阶段 C，原生 WAAPI，区间见 docs/design/PICK.md） ---------------- */
+const EASE_IN = 'cubic-bezier(0.2,0,0,1)';
+const EASE_OUT = 'cubic-bezier(0.4,0,1,1)';
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function waapi(el, frames, opts) {
+  if (!el || typeof el.animate !== 'function' || reduceMotion()) return null;
+  try { return el.animate(frames, opts); } catch (err) { return null; }
+}
+function countUp(el, to, duration = 400) {
+  const target = Number(to) || 0;
+  if (!el) return;
+  if (reduceMotion()) { el.textContent = String(target); return; }
+  const start = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - start) / duration);
+    el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function splitChars(text) {
+  return Array.from(String(text || '')).map((ch) => `<span class="v5-h1-ch">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('');
+}
+
 /* ---------------- 主题 ---------------- */
 function currentTheme() {
   const explicit = document.documentElement.dataset.theme;
@@ -105,7 +137,7 @@ function renderNav() {
     const href = navHref(item);
     return `<a href="${href}" data-route="${esc(item.target)}">${esc(item.label)}</a>`;
   }).join('');
-  const admin = document.querySelector('.admin-link');
+  const admin = document.querySelector('.admin-entry');
   if (admin && state.source === 'static') admin.style.display = 'none';
 }
 
@@ -157,16 +189,30 @@ function practiceCard(c) {
   </a>`;
 }
 
+const TIMELINE_LINKS = {
+  '01': { href: '#/internship', label: '看实习记录' },
+  '02': { href: '#/work/case-physics', label: '看公益课记录' },
+  '03': { href: '/assets/photos/campus/qingxie.webp', label: '看现场照片', external: true },
+  '04': { href: '/assets/photos/campus/kexie.webp', label: '看现场照片', external: true }
+};
+
 function timelineHtml(items = []) {
-  return `<div class="v5-timeline">${items.map((item) => `
-    <article class="v5-timeline-item reveal">
-      <span class="v5-timeline-no">${esc(item.no || '')}</span>
-      <div class="v5-timeline-body">
+  return `<div class="v5-timeline">${items.map((item) => {
+    const map = TIMELINE_LINKS[item.no] || {};
+    const href = item.href || map.href;
+    const label = item.linkLabel || map.label || '查看';
+    const external = item.external != null ? item.external : Boolean(map.external);
+    const body = `<div class="v5-timeline-body">
         <span class="v5-timeline-meta">${esc(item.meta || '')}</span>
         <h3>${esc(item.label || '')}</h3>
         <p>${esc(item.text || '')}</p>
-      </div>
-    </article>`).join('')}</div>`;
+        ${href ? `<span class="v5-card-link v5-timeline-open">${esc(label)} ${ARROW}</span>` : ''}
+      </div>`;
+    const inner = `<span class="v5-timeline-no">${esc(item.no || '')}</span>${body}`;
+    return href
+      ? `<a class="v5-timeline-item v5-timeline-item--link reveal" href="${safeUrl(href)}"${external ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(item.label || '')}：${esc(label)}">${inner}</a>`
+      : `<article class="v5-timeline-item reveal">${inner}</article>`;
+  }).join('')}</div>`;
 }
 
 function interestCard(item, index = 0) {
@@ -205,14 +251,19 @@ function renderHome() {
   const tags = (hero.tags || []).map((t) => `<span class="v5-tag">${esc(t)}</span>`).join('');
   const facts = (about.facts || []).map((f) => `<div class="v5-fact"><span>${esc(f.k)}</span><b>${esc(f.v)}</b></div>`).join('');
   const abilities = (about.abilities || []).map((a) => `<div class="v5-ability"><div class="v5-ability-head"><span>${esc(a.t)}</span></div><p>${esc(a.d)}</p></div>`).join('');
-  const skills = (about.skills || []).map((s) => `<span class="v5-skill">${esc(s.n)}</span>`).join('');
+  const SKILL_FROM = {
+    'SQL Server': '图书管理系统建库建表',
+    'C 语言': 'C 语言程序设计 · ESP32 固件',
+    'C++': 'C 语言程序设计 · ESP32 固件'
+  };
+  const skills = (about.skills || []).map((s) => `<span class="v5-skill"${SKILL_FROM[s.n] ? ` data-from="${esc(SKILL_FROM[s.n])}" tabindex="0"` : ''}>${esc(s.n)}</span>`).join('');
   const email = ((home.contacts || []).find((c) => c.label === '邮箱')) || { value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' };
 
   return `
   <section class="v5-hero wrap">
     <div class="v5-hero-copy">
       <p class="v5-eyebrow">${esc(hero.eyebrow || '')}</p>
-      <h1 class="v5-h1">${esc(hero.title || '')}</h1>
+      <h1 class="v5-h1">${splitChars(hero.title || '')}</h1>
       <p class="v5-intro">${esc(hero.intro || '')}</p>
       <div class="v5-tags">${tags}</div>
       <div class="v5-actions">
@@ -224,6 +275,11 @@ function renderHome() {
     <aside class="v5-profile">
       <div class="v5-profile-head"><span>PROFILE&nbsp;/&nbsp;2025</span><span class="v5-live"><i></i>OPEN</span></div>
       ${profile}
+      <div class="v5-signal">
+        <div class="v5-profile-row"><span>SIGNAL</span><b class="v5-signal-val" data-signal="98.4">98.4</b></div>
+        <div class="v5-signal-bar" aria-hidden="true"><i></i></div>
+      </div>
+      <div class="v5-profile-row"><span>LOCAL</span><b class="v5-clock" aria-hidden="true">--:--:--</b></div>
       <p class="v5-profile-motto">无限进步</p>
     </aside>
   </section>
@@ -271,13 +327,14 @@ function renderHome() {
 function renderInternship() {
   return `
   <section class="v5-page-head wrap">
+    ${backBar()}
     <span class="v5-kicker">01 / INTERNSHIP</span>
     <h1>把一件事从开头跟到落地</h1>
     <p>校内预备实习和东营区图书馆实践。两段都不长，一段练项目里的串联，一段练课程和现场。</p>
   </section>
   <section class="v5-section wrap">
     <div class="v5-intern-grid">
-      <article class="v5-intern-card reveal">
+      <a class="v5-intern-card v5-intern-card--link reveal" href="#/experience" aria-label="校内预备实习：查看经历记录">
         <span class="v5-intern-no">01</span>
         <div>
           <span class="v5-timeline-meta">在学校 · 项目实践</span>
@@ -285,9 +342,10 @@ function renderInternship() {
           <p>参与项目实践，做整体串联和调试。最难的一段是前后端和 UI 交互不兼容：前端用 AOS 滚动和响应式交互，后端用 GitHub Pages 与 Gitee Pages 双平台部署，再把路径和接口接起来。</p>
           <p>这段实习让我知道，代码能跑只是第一步。别人能不能按你的说明复核，才是另一回事。</p>
           ${chips(['项目串联', 'AOS 滚动', '双平台部署'])}
+          <span class="v5-card-link v5-intern-open">看经历记录 ${ARROW}</span>
         </div>
-      </article>
-      <article class="v5-intern-card reveal">
+      </a>
+      <a class="v5-intern-card v5-intern-card--link reveal" href="#/work/case-physics" aria-label="东营区图书馆实践：查看公益课记录">
         <span class="v5-intern-no">02</span>
         <div>
           <span class="v5-timeline-meta">东营区图书馆 · 公益课</span>
@@ -295,8 +353,9 @@ function renderInternship() {
           <p>把「小小物理学家探险队」的课程带进图书馆。课程设计、现场授课、场地和物料对接都要跟。四十分钟的课，孩子愿不愿意动手，一眼就能看出来。</p>
           <p>每次上完记下哪一段坐不住，下一次把那段拆短，或者换一个实验。</p>
           ${chips(['课程设计', '现场授课', '物料对接'])}
+          <span class="v5-card-link v5-intern-open">看公益课记录 ${ARROW}</span>
         </div>
-      </article>
+      </a>
     </div>
   </section>`;
 }
@@ -309,6 +368,7 @@ function renderExperience() {
   const campus = (state.data.home && state.data.home.campus) || [];
   return `
   <section class="v5-page-head wrap">
+    ${backBar()}
     <span class="v5-kicker">02 / EXPERIENCE</span>
     <h1>项目是经历的主体</h1>
     <p>四件自己做出来的东西，加一门公益课。下面按项目、时间线、校园照片排开。</p>
@@ -328,7 +388,7 @@ function renderExperience() {
   ${campus.length ? `<section class="v5-section wrap">
     ${sectionHead('02.4 / CAMPUS', '校园里的两张照片', '青协和科协各留一张，不铺成相册。')}
     <div class="v5-campus-grid">${campus.map((item) => `<figure class="v5-campus-card reveal">
-      <img src="${safeUrl(item.image)}" alt="${esc(item.alt)}" loading="lazy" decoding="async">
+      <a class="v5-campus-media" href="${safeUrl(item.image)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(item.title)}"><img src="${safeUrl(item.image)}" alt="${esc(item.alt)}" loading="lazy" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
       <figcaption><strong>${esc(item.title)}</strong><span>${esc(item.caption)}</span></figcaption>
     </figure>`).join('')}</div>
   </section>` : ''}`;
@@ -339,23 +399,24 @@ function renderInterest(id) {
   const interests = state.data.interests || [];
   if (id) {
     const item = interests.find((x) => x.id === id);
-    if (!item) return `<section class="v5-page-head wrap"><a class="v5-back" href="#/interest">${BACK_ARROW} 返回兴趣</a><h1>这个相册不存在</h1></section>`;
+    if (!item) return `<section class="v5-page-head wrap">${backBar({ href: '#/interest', label: '返回兴趣' })}<h1>这个相册不存在</h1></section>`;
     return `
     <section class="v5-page-head wrap">
-      <a class="v5-back" href="#/interest">${BACK_ARROW} 返回兴趣</a>
+      ${backBar({ href: '#/interest', label: '返回兴趣' })}
       <span class="v5-kicker">04 / INTEREST</span>
       <h1>${esc(item.title)}</h1>
       <p>${esc(item.lead || '')}</p>
     </section>
     <section class="v5-section wrap">
       <div class="v5-gallery">${(item.images || []).map((img, i) => `<figure class="v5-gallery-item reveal${i === 0 ? ' is-lead' : ''}">
-        <img src="${safeUrl(img.src)}" alt="${esc(img.alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async">
+        <a class="v5-gallery-media" href="${safeUrl(img.src)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(img.alt || item.title || '')}"><img src="${safeUrl(img.src)}" alt="${esc(img.alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
         <figcaption>${esc(img.caption || '')}</figcaption>
       </figure>`).join('')}</div>
     </section>`;
   }
   return `
   <section class="v5-page-head wrap">
+    ${backBar()}
     <span class="v5-kicker">04 / INTEREST</span>
     <h1>照片比文字多</h1>
     <p>骑行、羽毛球、登山，还有北京、淄博、济南。每个主题点开是一个小相册。</p>
@@ -368,7 +429,7 @@ function renderInterest(id) {
 /* ---------------- 项目详情 ---------------- */
 function renderCase(id) {
   const c = (state.data.work.cases || []).find((x) => x.id === id);
-  if (!c) return `<section class="v5-page-head wrap"><a class="v5-back" href="#/experience">${BACK_ARROW} 返回经历</a><h1>内容不存在</h1></section>`;
+  if (!c) return `<section class="v5-page-head wrap">${backBar({ href: '#/experience', label: '返回经历' })}<h1>内容不存在</h1></section>`;
 
   const sections = (c.sections || []).map((s) => `<h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>`).join('');
   const rawImages = c.images || [];
@@ -378,13 +439,16 @@ function renderCase(id) {
 
   return `
   <section class="v5-page-head wrap">
-    <a class="v5-back" href="#/experience">${BACK_ARROW} 返回经历</a>
+    ${backBar({ href: '#/experience', label: '返回经历' })}
     <span class="v5-kicker">${esc(c.category === 'practice' ? 'PRACTICE' : 'PROJECT')} / ${esc(c.number || '')}</span>
     <h1>${esc(c.title)}</h1>
     <p>${esc(c.summary)}</p>
   </section>
   <section class="v5-detail wrap">
-    <figure class="v5-detail-cover"><img src="${safeUrl(c.cover)}" alt="${esc(c.title)} 封面" fetchpriority="high" decoding="async"><span>${esc(c.org || '')}</span></figure>
+    <a class="v5-detail-cover" href="${safeUrl(c.cover)}" target="_blank" rel="noopener" aria-label="查看封面原图">
+      <img src="${safeUrl(c.cover)}" alt="${esc(c.title)} 封面" fetchpriority="high" decoding="async">
+      <span class="v5-cover-org">${esc(c.org || '')}</span><span class="v5-open-tag">原图 ↗</span>
+    </a>
     <dl class="v5-detail-meta">
       <div><dt>归属</dt><dd>${esc(c.org || '—')}</dd></div>
       <div><dt>时间</dt><dd>${esc(c.period || '—')}</dd></div>
@@ -395,7 +459,7 @@ function renderCase(id) {
       <div class="v5-detail-sections">${sections}</div>
       <aside class="v5-detail-side">
         <div class="v5-side-block"><span class="v5-side-label">标签 / TAGS</span><div class="v5-skills">${tags || '<span class="v5-muted">暂无</span>'}</div></div>
-        ${images.length ? `<div class="v5-detail-images">${images.map((img) => `<figure><img src="${safeUrl(img.src)}" alt="${esc(img.alt || c.title)}" loading="lazy" decoding="async"><figcaption>${esc(img.caption || '')}</figcaption></figure>`).join('')}</div>` : ''}
+        ${images.length ? `<div class="v5-detail-images">${images.map((img) => `<figure><a class="v5-detail-img" href="${safeUrl(img.src)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(img.alt || c.title)}"><img src="${safeUrl(img.src)}" alt="${esc(img.alt || c.title)}" loading="lazy" decoding="async"><span class="v5-open-tag">原图 ↗</span></a><figcaption>${esc(img.caption || '')}</figcaption></figure>`).join('')}</div>` : ''}
         ${c.result ? `<div class="v5-result"><span class="v5-side-label">留下什么 / RESULT</span><p>${esc(c.result)}</p></div>` : ''}
         ${links ? `<div class="v5-detail-links">${links}</div>` : ''}
       </aside>
@@ -452,13 +516,13 @@ function renderTools() {
 
   return `
   <section class="v5-page-head wrap">
-    <a class="v5-back" href="#/">${BACK_ARROW} 返回首页</a>
+    ${backBar()}
     <span class="v5-kicker">05 / TOOLS</span>
     <h1>${esc(tools.title || '在线工具箱')}</h1>
     <p>${esc(tools.intro || '')}</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-tools-status"><span><i></i>LOCAL ENGINE / READY</span><span>${list.length} 个工具</span><span>NO SERVER / NO UPLOAD</span></div>
+    <div class="v5-tools-status"><span><i></i>LOCAL ENGINE / READY</span><span><span class="v5-count" data-count="${list.length}" data-tip="自建在线工具" tabindex="0">${list.length}</span> 个工具</span><span>NO SERVER / NO UPLOAD</span></div>
     <div class="converter-mount" id="converterApp"><p class="tool-loading">转换台初始化中…</p></div>
     <div class="v5-tools-sub">${sectionHead('05.1 / UTILITIES', '常用的几个', '转换台之外，保留这些轻量工具。每个都写了使用前提。')}</div>
     <div class="v5-tool-grid">${cards || '<p class="v5-empty">工具正在整理。</p>'}</div>
@@ -468,11 +532,11 @@ function renderTools() {
 async function renderTool(id) {
   const item = toolModules().find((t) => t.id === id);
   if (!item) {
-    return `<section class="v5-page-head wrap"><a class="v5-back" href="#/tools">${BACK_ARROW} 返回工具</a><h1>工具不存在或已关闭</h1></section>`;
+    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: '返回工具' })}<h1>工具不存在或已关闭</h1></section>`;
   }
   const head = `
   <section class="v5-page-head wrap">
-    <a class="v5-back" href="#/tools">${BACK_ARROW} 返回工具</a>
+    ${backBar({ href: '#/tools', label: '返回工具' })}
     <div class="v5-tool-title"><span class="v5-tool-icon">${toolIcon(item.id)}</span><div><span class="v5-kicker">TOOL / ${esc(item.id.toUpperCase())}</span><h1>${esc(item.name)}</h1></div></div>
     <p>${esc(item.desc || '')}</p>
     <p class="v5-tool-prereq">解决什么问题：${esc(item.problem || '')}　使用前提：${esc(item.prereq || '在浏览器本地运行。')}</p>
@@ -532,6 +596,7 @@ function renderFoot() {
         <div class="guest-field guest-field--text"><label for="guestText">留言</label><textarea id="guestText" name="text" maxlength="500" rows="4" placeholder="想说的话，最多 500 字。" required></textarea></div>
         <div class="guest-honeypot" aria-hidden="true"><label>网站<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <div class="guest-actions"><span class="guest-hint" id="guestHint">留个昵称就能写，不需要登录。</span><button type="submit" class="v5-btn v5-btn--primary" id="guestSubmit">发送留言 ${ARROW}</button></div>
+        <p class="guest-status" id="guestStatus" role="status" aria-live="polite"></p>
       </form>
       <div class="guest-list" id="guestList" hidden></div>
     </section>
@@ -540,7 +605,7 @@ function renderFoot() {
       <a href="/classic/">经典版 ${ARROW}</a>
       <a href="#/">回到顶部 ↑</a>
     </div>
-    <div class="foot-bottom"><span>${esc(state.data.site.footer || '')}</span><span>BUILD&nbsp;5.0&nbsp;/&nbsp;2026.11</span></div>
+    <div class="foot-bottom"><span>${esc(state.data.site.footer || '')}</span><span class="foot-credit">Animations adapted from React Bits (MIT + Commons Clause) · Button form by reglobby (Uiverse, MIT)</span><span>BUILD&nbsp;5.0&nbsp;/&nbsp;2026.11</span></div>
   </div>`;
 }
 
@@ -600,6 +665,13 @@ function bindGuestbook() {
   const submit = $('#guestSubmit');
   const list = $('#guestList');
   const count = $('#guestCount');
+  const status = $('#guestStatus');
+  const say = (msg, kind) => {
+    if (!status) return;
+    status.textContent = msg;
+    if (kind) status.dataset.state = kind; else delete status.dataset.state;
+    waapi(status, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: EASE_IN });
+  };
   const endpoint = guestbookEndpoint();
 
   try { name.value = localStorage.getItem('pf-guest-name') || ''; } catch (err) { /* ignore */ }
@@ -615,12 +687,13 @@ function bindGuestbook() {
     event.preventDefault();
     const nickname = String(name.value || '').trim();
     const message = String(text.value || '').trim();
-    if (!nickname) { toast('先留一个昵称。'); name.focus(); return; }
-    if (!message) { toast('留言内容不能为空。'); text.focus(); return; }
+    if (!nickname) { say('先留一个昵称。', 'err'); toast('先留一个昵称。'); name.focus(); return; }
+    if (!message) { say('留言内容不能为空。', 'err'); toast('留言内容不能为空。'); text.focus(); return; }
     try { localStorage.setItem('pf-guest-name', nickname); } catch (err) { /* ignore */ }
-    if (!endpoint) { guestMailto(nickname, message, hint); return; }
+    if (!endpoint) { say('静态站点：已打开邮件应用发送留言。', 'ok'); guestMailto(nickname, message, hint); return; }
 
     submit.disabled = true;
+    say('发送中…');
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -643,9 +716,11 @@ function bindGuestbook() {
         count.textContent = `${current + 1} 条`;
       }
       hint.textContent = '留言已发出。';
+      say('留言已发出。', 'ok');
       toast('留言已发出');
     } catch (err) {
       hint.textContent = `公开留言暂时不可用，改为发到 ${guestbookEmail()}。`;
+      say('公开留言暂时不可用，已改为邮件发送。', 'err');
       guestMailto(nickname, message, hint);
     } finally { submit.disabled = false; }
   });
@@ -666,15 +741,11 @@ function parseRoute() {
 
 function revealIn() {
   const els = $$('.reveal');
-  if (!('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('is-in')); return; }
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-in'); io.unobserve(entry.target); } });
-  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
-  els.forEach((el) => { el.classList.add('reveal'); io.observe(el); });
+  els.forEach((el) => el.classList.add('is-in'));
 }
 
 function renderClosedBranch(branch) {
-  return `<section class="v5-page-head wrap"><p class="v5-kicker">BRANCH CLOSED</p><h1>${esc(branch.label || '这个分支')}暂时关闭</h1><p>该分支已在后台隐藏。你仍然可以从底部入口进入经典版，或在后台重新启用它。</p><div class="v5-actions"><a class="v5-btn v5-btn--primary" href="#/">回到主页 ${ARROW}</a></div></section>`;
+  return `<section class="v5-page-head wrap">${backBar()}<p class="v5-kicker">BRANCH CLOSED</p><h1>${esc(branch.label || '这个分支')}暂时关闭</h1><p>该分支已在后台隐藏。你仍然可以从底部入口进入经典版，或在后台重新启用它。</p><div class="v5-actions"><a class="v5-btn v5-btn--primary" href="#/">回到主页 ${ARROW}</a></div></section>`;
 }
 
 async function render(scrollTop = false) {
@@ -698,6 +769,13 @@ async function render(scrollTop = false) {
   updateNavActive();
   revealIn();
 
+  if (state.route.name === 'home') {
+    $$('.v5-h1 .v5-h1-ch', view).forEach((ch, i) => waapi(ch, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 320, delay: i * 60, easing: EASE_IN, fill: 'backwards' }));
+  }
+  if (state.route.name === 'tools') {
+    $$('.v5-count', view).forEach((el) => countUp(el, el.dataset.count, 400));
+  }
+
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!reduce && view.animate) {
     view.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 360, easing: 'cubic-bezier(.22,1,.36,1)' });
@@ -711,12 +789,24 @@ async function boot() {
   $('#themeBtn')?.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark'));
   $('#menuBtn')?.addEventListener('click', () => {
     const nav = $('#nav');
-    const open = nav.classList.toggle('is-open');
-    $('#menuBtn').setAttribute('aria-expanded', String(open));
+    const btn = $('#menuBtn');
+    if (nav.classList.contains('is-open')) {
+      const done = () => { nav.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); };
+      const anim = waapi(nav, [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-12px)' }], { duration: 200, easing: EASE_OUT });
+      if (anim) anim.onfinish = done; else done();
+    } else {
+      nav.classList.add('is-open');
+      btn.setAttribute('aria-expanded', 'true');
+      waapi(nav, [{ opacity: 0, transform: 'translateY(-12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 200, easing: EASE_IN });
+    }
   });
   $('#nav')?.addEventListener('click', () => {
-    $('#nav').classList.remove('is-open');
-    $('#menuBtn')?.setAttribute('aria-expanded', 'false');
+    const nav = $('#nav');
+    const btn = $('#menuBtn');
+    if (!nav.classList.contains('is-open')) return;
+    const done = () => { nav.classList.remove('is-open'); btn?.setAttribute('aria-expanded', 'false'); };
+    const anim = waapi(nav, [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-12px)' }], { duration: 200, easing: EASE_OUT });
+    if (anim) anim.onfinish = done; else done();
   });
 
   try {
