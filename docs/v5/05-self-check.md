@@ -76,7 +76,7 @@
 2. 项目封面 `site/tools/voice/library` 仍是极简线稿 SVG，不是真实页面截图；适合当前视觉，但不算「真实截图」。
 3. CMS 后台 `PUT /api/content` 允许额外 `interests` 键；后台表单是否已暴露 `interests` / `home.campus` 未逐项验证，改内容优先直接编辑 `data/site.json`。
 4. `ai-server/profile.json` 已更新为 V5 事实，但线上 `https://ai.sunzhihaoai.top/api/chat` 未重部署；前台 endpoint 为空，当前不依赖远程 AI。
-5. 源码仓库 `Sun-1025/portfolio` 尚未按 V5 全量推送；本机无 git，需 GitHub API 或源码包另行上传。
+5. 源码仓库 `Sun-1025/portfolio` 已按 V5 全量推送（99 files）；本机无 git，使用 GitHub API。
 6. GitLab 推送仍未完成：无 Token、`glab` 未安装、API 403、SSH 22 超时。
 
 ## 9. 验收清单
