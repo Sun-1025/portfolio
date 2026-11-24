@@ -24,7 +24,7 @@ npm install
 npm start           # http://localhost:8080
 ```
 
-首次启动会生成默认管理员 `admin` / `Admin@12345`。首次登录后请立即改密码；生产环境不要把默认密码留在 README 之外。
+首次启动前先复制 `.env.example` 为 `.env`，在 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 里填入自己的管理账号；仓库不提供可直接使用的默认密码。
 
 ## 构建与部署
 

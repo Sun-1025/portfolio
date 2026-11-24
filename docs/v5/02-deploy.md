@@ -21,12 +21,12 @@ npm start
 PORT=8080
 HOST=0.0.0.0
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=Admin@12345
+ADMIN_PASSWORD=replace-with-a-strong-password
 JWT_SECRET=
 SESSION_HOURS=4
 ```
 
-首次启动生成 `data/users.json` 与 `data/.jwt-secret`；后台 `/admin/` 登录后改密码。不要把 `data/users.json`、`data/.jwt-secret`、`data/backups/` 推到公开仓库。
+首次启动生成 `data/users.json` 与 `data/.jwt-secret`；`ADMIN_PASSWORD` 必须自行设置为至少 8 位，仓库不提供默认密码。后台 `/admin/` 登录后可在账号设置里改密码。不要把 `data/users.json`、`data/.jwt-secret`、`data/backups/` 推到公开仓库。
 
 ## 3. 静态构建
 
