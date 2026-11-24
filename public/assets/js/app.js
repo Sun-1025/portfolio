@@ -522,7 +522,7 @@ function renderFoot() {
       <div class="foot-guest-head">
         <div>
           <span class="mini-label">GUESTBOOK / ANON</span>
-          <h3 id="guestbookTitle">两字留言</h3>
+          <h3 id="guestbookTitle">留言</h3>
           <p id="guestMode">不用登录。留个昵称，把想说的话写下来。</p>
         </div>
         <span class="foot-guest-count" id="guestCount" hidden></span>
