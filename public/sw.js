@@ -1,6 +1,6 @@
 /* Offline shell for the local-only tools.
    Version bump is required whenever the cached tool assets change. */
-const CACHE = 'szh-t1-m1-v2';
+const CACHE = 'szh-t1-m1-v3';
 const CORE = [
   '/',
   '/index.html',

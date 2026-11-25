@@ -1,4 +1,4 @@
-/* pointer.js — v6 光标探针 / 读数响应 / 数据出处
+/* pointer.js — v6 读数响应 / 数据出处
    一个 rAF、一个 pointermove、一个 pointerdown/up、一个 pointerleave。 */
 (() => {
   'use strict';
@@ -6,43 +6,12 @@
   window.__v6Pointer = true;
 
   const doc = document;
-  const root = doc.documentElement;
   const bus = window.PointerBus;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  const LINK_SEL = 'a, button, [role="button"], input, textarea, .v5-project-card, .v5-tool-card';
   const TIP_SEL = '.v5-skill[data-from], [data-tip]';
 
-  /* ---------------- 第一件：光标 ---------------- */
-  let cursor = null, dot = null, ring = null;
-  let tx = -100, ty = -100, rx = -100, ry = -100;
-  let cursorRaf = 0;
-  function frame() {
-    cursorRaf = 0;
-    rx += (tx - rx) * 0.16;
-    ry += (ty - ry) * 0.16;
-    if (dot) dot.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
-    if (ring) ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
-    if (Math.abs(tx - rx) > 0.06 || Math.abs(ty - ry) > 0.06) {
-      cursorRaf = requestAnimationFrame(frame);
-    } else {
-      rx = tx; ry = ty;
-      if (ring) ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
-    }
-  }
-  function startCursor() {
-    if (cursor && !cursorRaf) cursorRaf = requestAnimationFrame(frame);
-  }
-  if (fine && !reduce) {
-    root.dataset.cursor = 'on';
-    cursor = doc.createElement('div');
-    cursor.className = 'v6-cursor';
-    cursor.setAttribute('aria-hidden', 'true');
-    cursor.innerHTML = '<span class="v6-cursor-dot"></span><span class="v6-cursor-ring"><span class="v6-cursor-glyph">↗</span></span>';
-    doc.body.appendChild(cursor);
-    dot = cursor.querySelector('.v6-cursor-dot');
-    ring = cursor.querySelector('.v6-cursor-ring');
-  }
+  /* ---------------- 第一件：保留浏览器默认光标 ---------------- */
+  /* 自定义光标已移除；交互元素继续使用各自的原生 cursor。 */
 
   /* ---------------- 第三件：共享 tooltip ---------------- */
   const tip = doc.createElement('div');
@@ -178,19 +147,12 @@
   let hx = 0, hy = 0, hoverEl = null;
   if (bus) bus.subscribe((p) => {
     if (p.x === -9999) {
-      if (cursor) cursor.classList.add('is-out');
       tipHide();
       hoverEl = null;
       setBracket(null);
       return;
     }
     hx = p.x; hy = p.y;
-    if (cursor) {
-      cursor.classList.remove('is-out');
-      tx = hx; ty = hy;
-      cursor.classList.toggle('is-link', !!(p.target && p.target.closest && p.target.closest(LINK_SEL)));
-      startCursor();
-    }
     const hit = p.target && p.target.closest ? p.target.closest(TIP_SEL) : null;
     if (hit !== hoverEl) {
       tipHide();
@@ -203,8 +165,6 @@
     signalCheck(hx, hy);
   });
 
-  doc.addEventListener('pointerdown', () => { if (cursor) cursor.classList.add('is-press'); });
-  doc.addEventListener('pointerup', () => { if (cursor) cursor.classList.remove('is-press'); });
   window.addEventListener('wheel', () => { if (tipOn) tipHide(); hoverEl = null; }, { passive: true });
   window.addEventListener('touchmove', () => { if (tipOn) tipHide(); hoverEl = null; }, { passive: true });
 
