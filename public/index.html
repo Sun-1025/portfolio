@@ -84,5 +84,12 @@
 <script type="module" src="/assets/js/threads.js"></script>
 <script type="module" src="/assets/js/backtop.js"></script>
 <script type="module" src="/assets/js/ui-fx.js"></script>
+<script>
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>

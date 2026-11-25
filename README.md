@@ -17,7 +17,7 @@
 - 后台：`/admin` 可视化内容管理，支持条目编辑、排序、公开/私密/草稿、回收站、媒体库、备份和发布。
 - 工具：文件转换台、Markdown 转 HTML、字数统计、单位换算、日期计算、PDF 转 Word、Word 转 PDF；工具逻辑全部在浏览器本地运行。
 - T1 工具库：先交付 `pdf-to-word`（pdf.js 文字层 + JSZip 最小 OOXML）与 `word-to-pdf`（mammoth + 系统打印面板），转换台同步新增 `PDF → DOCX`、`DOCX → PDF` 两条目标；M2 图片工具、M3 文本/计算工具尚未开始。
-- 最新本地构建：`85` 个文件，`10,341,183` 字节（约 9.86 MB；T1 M1 构建）。
+- 最新本地构建：`86` 个文件，`10,343,727` 字节（约 9.86 MB；T1 M1 构建）。
 - A2 验收：`dist` 构建通过；深色对比度 17.14:1，浅色 15.75:1；60s 桌面 rAF 平均 4.166ms；390×844 无横向溢出；WebGL2 不可用、页面隐藏、`prefers-reduced-motion` 均有降级路径。
 - A3 收口：关于页右侧信息栏与主栏垂直居中；回到顶部按钮文字上下居中；工具台左右两栏等高、等宽，右侧投放区与空队列约 2:1；站内 Agent 增加气泡提示。
 
@@ -151,6 +151,7 @@ portfolio-v2/
 - `word-to-pdf`：mammoth 转 HTML，隐藏 iframe 打开系统打印面板，用户选择「另存为 PDF」；不承诺高保真，批注、修订、复杂域会丢。
 - 转换台：新增 `PDF → DOCX` 和 `DOCX → PDF`。后者和独立工具共用打印路径，成功后只标记“已打开打印面板”，不会伪造下载文件。
 - pdf.js 的 CMap 文件放在 `public/tools/vendor/cmaps/`，保证中文 PDF 能正确提取；worker 走 `/tools/vendor/pdf.worker.min.mjs` 绝对路径。
+- `public/sw.js` 在首次联网访问后预缓存前台壳、工具模块和 vendor，DevTools offline 下仍可打开 `#/tools/pdf-to-word` 并完成转换；只缓存本地站点资源，不涉及上传。
 
 明确不做：视频转码/视频转 GIF（ffmpeg.wasm 体积过大）、OCR（当前不做扫描件识别）、Office/PPT/Excel → PDF 的版式高保真转换、需要 API Key 的 AI 工具、任何需要服务器的转换。
 

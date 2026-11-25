@@ -137,6 +137,7 @@ async function main() {
 
   // 1. 页面与资源
   copy(path.join(PUBLIC, 'index.html'), path.join(OUT, 'index.html'));
+  fs.copyFileSync(path.join(PUBLIC, 'sw.js'), path.join(OUT, 'sw.js'));
   const exportedIndex = path.join(OUT, 'index.html');
   // 顶部「管理员登录」在静态站保留，指向本机后台（线上无 Node，相对 /admin 会 404）
   const exportedHtml = fs.readFileSync(exportedIndex, 'utf8')
