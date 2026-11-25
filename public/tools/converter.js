@@ -517,7 +517,7 @@ export function render(root, ctx = {}) {
       <div class="conv-empty" id="convEmpty">
         <span class="conv-empty-mark">∅</span>
         <b>队列为空</b>
-        <span>拖入文件后会出现在这里。图片、数据、PDF、Office、电子书和 3D 都在本机处理。</span>
+        <span class="conv-empty-note">拖入文件后会出现在这里。图片、数据、PDF、Office、电子书和 3D 都在本机处理。</span>
       </div>
       <div class="conv-footnote"><span>NO SERVER / NO UPLOAD</span><span>BYTECRAFT / 2026</span></div>
     </main>

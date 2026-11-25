@@ -5,10 +5,10 @@
 - A2：首页背景从 DotField 全面替换为原生 WebGL2 Threads；删除 `public/assets/js/dotfield.js`，新增 `public/assets/js/threads.js`，`public/index.html` 改引新脚本，`app-v6.css` 的 `.v6-dotfield` 改为 `.v6-threads`。
 - A2 保留三段 GLSL、`MAX_RENDER_DIM` 语义、`buildStrip` 的 96–640 分段、`uCurve = 2 / brightness`、`blendFunc(ONE, ONE_MINUS_SRC_ALPHA)`；全屏跟随，无禁区、无遮罩、无冻结，指针只走 `PointerBus`。
 - A2 卡片 hover 增加 scoped 规则：threads 模式下四类卡片保持 `background: var(--glass-tint)`，`backdrop-filter` 降为 `blur(2px) saturate(1.35)`，默认卡面 token 未改。
-- A3：关于页右侧信息栏与主栏垂直居中；回顶按钮 `Back to Top` 文字水平/垂直居中；工具台左右两栏等高、等宽；站内 Agent 增加气泡提示，文案末尾带全角波浪号，打开面板后自动隐藏。
+- A3：关于页右侧信息栏与主栏垂直居中；回顶按钮 `Back to Top` 文字水平/垂直居中；工具台左右两栏等高、等宽；右侧投放区占上方 2/3、空队列占下方 1/3，`∅` 随空状态高度等比缩放并紧贴“队列为空”上方；站内 Agent 增加气泡提示，文案末尾带全角波浪号，打开面板后自动隐藏。
 - 文档：README 重建；新增 `docs/00-overview.md` 到 `docs/09-credits.md`；清理 GitHub 上 `docs/??????.md` 等乱码文件名，统一使用 ASCII 文件名与 UTF-8 正文。
 - 隐私：移除文档中的管理员明文密码；本机完成管理员密码轮换，新密码写入 `private/admin-password.txt`（`.gitignore` 已忽略），仓库不提供默认密码。
-- 构建：`npm run build` 通过，`dist` 72 文件 / 10,199,084B；`dist/assets/js/threads.js` 14,263B；`dist/assets/js/dotfield.js` 不存在。
+- 构建：`npm run build` 通过，`dist` 72 文件 / 10,199,202B；`dist/assets/js/threads.js` 14,263B；`dist/assets/js/dotfield.js` 不存在。
 
 ## 4.0.1 — 2026-11-23（iOS 27 日间玻璃，未发布）
 

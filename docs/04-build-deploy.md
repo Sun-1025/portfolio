@@ -47,7 +47,7 @@ node scripts/export-static.js
 当前构建结果：
 
 - 72 个文件
-- 10,199,084 字节（约 9.73 MB）
+- 10,199,202 字节（约 9.73 MB）
 - 图片优化 26 张，减少 346.6KB
 - 总压缩减少约 444.3KB
 
@@ -138,7 +138,7 @@ Gitee 仓库：`https://gitee.com/SunZHAO1025/portfolio`。
 - [ ] `npm run build` 通过，`dist` 文件数和体积符合预期。
 - [ ] `dist` 中没有 `dotfield.js`，首页引用 `threads.js`。
 - [ ] 深色/浅色主题都看过；390×844 无横向溢出。
-- [ ] 关于页信息栏垂直居中；回顶文字居中；工具台两栏等高、等宽；Agent 气泡可见。
+- [ ] 关于页信息栏垂直居中；回顶文字居中；工具台两栏等高、等宽；投放区与空队列约 2:1；`∅` 在“队列为空”上方；Agent 气泡可见。
 - [ ] `/classic`、`/admin`、工具详情、项目详情都能打开。
 - [ ] 线上 `threads.js` 200，`dotfield.js` 404。
 - [ ] 仓库 tree 中没有 `data/users.json`、`.jwt-secret`、`private/`、`qa/`。

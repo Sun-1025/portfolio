@@ -1578,7 +1578,7 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .conv-drop-meta, .conv-toolbar, .conv-btn, .conv-progress-label, .conv-row-index,
   .conv-arrow, .conv-row-status, .conv-row-btn, .conv-fmt-from, .conv-fmt-arrow,
   .conv-fmt-note, .conv-history-head, .conv-history-meta, .conv-history-empty,
-  .conv-note, .conv-footnote, .conv-empty span, .conv-matrix-count
+  .conv-note, .conv-footnote, .conv-empty-note, .conv-matrix-count
 ) {
   font-size: 13px;
   line-height: 1.5;
@@ -1950,8 +1950,7 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .converter-app .conv-row-select,
 .converter-app .conv-row-status,
 .converter-app .conv-row-btn,
-.converter-app .conv-empty-mark,
-.converter-app .conv-empty span,
+.converter-app .conv-empty-note,
 .converter-app .conv-footnote { font-size: 13px !important; }
 
 .converter-app .conv-row-file b,
