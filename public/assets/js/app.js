@@ -93,10 +93,20 @@ function applyTheme(theme) {
 }
 
 /* ---------------- 数据 ---------------- */
+const LOCK_NOTE = '暂未公开';
+function isLocked(item) {
+  return !!(item && item.note === LOCK_NOTE);
+}
+
 async function loadData() {
   if (document.documentElement.dataset.static !== '1') {
     try {
-      const res = await fetch('/api/content', { cache: 'no-store' });
+      const params = new URLSearchParams(location.search);
+      let url = '/api/content';
+      if (params.get('token') && params.get('preview')) {
+        url = `/api/content?token=${encodeURIComponent(params.get('token'))}&preview=${encodeURIComponent(params.get('preview'))}`;
+      }
+      const res = await fetch(url, { cache: 'no-store' });
       if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
         state.source = 'api';
         return await res.json();
@@ -163,6 +173,16 @@ function chips(tags = [], max = 4) {
 }
 
 function projectCard(c, index = 0) {
+  if (isLocked(c)) {
+    return `<article class="v5-project-card v5-locked reveal">
+      <div class="v5-project-media"><div class="v5-cover-fallback v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
+      <div class="v5-project-copy">
+        <span class="v5-project-meta">项目</span>
+        <h3 class="v5-project-title">${esc(c.title)}</h3>
+        <p class="v5-project-summary">该内容暂未公开</p>
+      </div>
+    </article>`;
+  }
   return `<a class="v5-project-card reveal" href="#/work/${esc(c.id)}">
     <div class="v5-project-media">${projectCover(c)}<span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
     <div class="v5-project-copy">
@@ -177,6 +197,16 @@ function projectCard(c, index = 0) {
 
 function practiceCard(c) {
   if (!c) return '';
+  if (isLocked(c)) {
+    return `<article class="v5-practice v5-locked reveal">
+      <div class="v5-practice-media"><div class="v5-cover-fallback v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span class="v5-practice-tag">公益实践</span></div>
+      <div class="v5-practice-copy">
+        <span class="v5-project-meta">公益实践</span>
+        <h3 class="v5-project-title">${esc(c.title)}</h3>
+        <p class="v5-project-summary">该内容暂未公开</p>
+      </div>
+    </article>`;
+  }
   return `<a class="v5-practice reveal" href="#/work/${esc(c.id)}">
     <div class="v5-practice-media">${projectCover(c)}<span class="v5-practice-tag">公益实践</span></div>
     <div class="v5-practice-copy">
@@ -198,6 +228,12 @@ const TIMELINE_LINKS = {
 
 function timelineHtml(items = []) {
   return `<div class="v5-timeline">${items.map((item) => {
+    if (isLocked(item)) {
+      return `<article class="v5-timeline-item v5-locked reveal">
+        <span class="v5-timeline-no">${esc(item.no || '')}</span>
+        <div class="v5-timeline-body"><span class="v5-timeline-meta">${esc(item.meta || '')}</span><h3>${esc(item.title || item.label || '')}</h3><p>该内容暂未公开</p></div>
+      </article>`;
+    }
     const map = TIMELINE_LINKS[item.no] || {};
     const href = item.href || map.href;
     const label = item.linkLabel || map.label || '查看';
@@ -216,6 +252,15 @@ function timelineHtml(items = []) {
 }
 
 function interestCard(item, index = 0) {
+  if (isLocked(item)) {
+    return `<article class="v5-interest-card v5-locked reveal">
+      <div class="v5-interest-cover"><div class="v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span>${String(index + 1).padStart(2, '0')}</span></div>
+      <div class="v5-interest-copy">
+        <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>0 张</span></div>
+        <p>该内容暂未公开</p>
+      </div>
+    </article>`;
+  }
   const count = (item.images || []).length;
   const first = (item.images || [])[0];
   const alt = (first && first.alt) || `${item.title || '兴趣'}照片`;
@@ -257,7 +302,8 @@ function renderHome() {
     'C++': 'C 语言程序设计 · ESP32 固件'
   };
   const skills = (about.skills || []).map((s) => `<span class="v5-skill"${SKILL_FROM[s.n] ? ` data-from="${esc(SKILL_FROM[s.n])}" tabindex="0"` : ''}>${esc(s.n)}</span>`).join('');
-  const email = ((home.contacts || []).find((c) => c.label === '邮箱')) || { value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' };
+  const emailRaw = ((home.contacts || []).find((c) => c.label === '邮箱'));
+  const email = isLocked(emailRaw) ? { value: '暂未公开', url: '' } : (emailRaw || { value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' });
 
   return `
   <section class="v5-hero wrap">
@@ -387,7 +433,9 @@ function renderExperience() {
   </section>
   ${campus.length ? `<section class="v5-section wrap">
     ${sectionHead('02.4 / CAMPUS', '校园里的两张照片', '青协和科协各留一张，不铺成相册。')}
-    <div class="v5-campus-grid">${campus.map((item) => `<figure class="v5-campus-card reveal">
+    <div class="v5-campus-grid">${campus.map((item) => isLocked(item)
+      ? `<figure class="v5-campus-card v5-locked reveal"><div class="v5-lock-fallback"><span aria-hidden="true">🔒</span></div><figcaption><strong>${esc(item.title)}</strong><span>该内容暂未公开</span></figcaption></figure>`
+      : `<figure class="v5-campus-card reveal">
       <a class="v5-campus-media" href="${safeUrl(item.image)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(item.title)}"><img src="${safeUrl(item.image)}" alt="${esc(item.alt)}" loading="lazy" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
       <figcaption><strong>${esc(item.title)}</strong><span>${esc(item.caption)}</span></figcaption>
     </figure>`).join('')}</div>
@@ -400,6 +448,15 @@ function renderInterest(id) {
   if (id) {
     const item = interests.find((x) => x.id === id);
     if (!item) return `<section class="v5-page-head wrap">${backBar({ href: '#/interest', label: '返回兴趣' })}<h1>这个相册不存在</h1></section>`;
+    if (isLocked(item)) {
+      return `
+      <section class="v5-page-head wrap">
+        ${backBar({ href: '#/interest', label: '返回兴趣' })}
+        <span class="v5-kicker">04 / INTEREST</span>
+        <h1>${esc(item.title)}</h1>
+        <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+      </section>`;
+    }
     return `
     <section class="v5-page-head wrap">
       ${backBar({ href: '#/interest', label: '返回兴趣' })}
@@ -430,6 +487,15 @@ function renderInterest(id) {
 function renderCase(id) {
   const c = (state.data.work.cases || []).find((x) => x.id === id);
   if (!c) return `<section class="v5-page-head wrap">${backBar({ href: '#/experience', label: '返回经历' })}<h1>内容不存在</h1></section>`;
+  if (isLocked(c)) {
+    return `
+    <section class="v5-page-head wrap">
+      ${backBar({ href: '#/experience', label: '返回经历' })}
+      <span class="v5-kicker">PROJECT</span>
+      <h1>${esc(c.title)}</h1>
+      <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+    </section>`;
+  }
 
   const sections = (c.sections || []).map((s) => `<h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>`).join('');
   const rawImages = c.images || [];
@@ -482,6 +548,16 @@ function toolIcon(id) {
 }
 
 function toolCard(t) {
+  if (isLocked(t)) {
+    return `<article class="v5-tool-card v5-locked reveal">
+      <span class="v5-tool-icon"><span aria-hidden="true">🔒</span></span>
+      <span class="v5-tool-body">
+        <span class="v5-project-meta">工具</span>
+        <h3>${esc(t.title || t.name || '')}</h3>
+        <p class="v5-tool-problem">该内容暂未公开</p>
+      </span>
+    </article>`;
+  }
   return `<a class="v5-tool-card reveal" href="#/tools/${esc(t.id)}">
     <span class="v5-tool-icon">${toolIcon(t.id)}</span>
     <span class="v5-tool-body">
@@ -530,8 +606,21 @@ function renderTools() {
 }
 
 async function renderTool(id) {
-  const item = toolModules().find((t) => t.id === id);
+  const enabled = toolModules().find((t) => t.id === id);
+  const item = enabled || (state.data.tools.items || []).find((t) => t.id === id);
   if (!item) {
+    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: '返回工具' })}<h1>工具不存在或已关闭</h1></section>`;
+  }
+  if (isLocked(item)) {
+    return `
+    <section class="v5-page-head wrap">
+      ${backBar({ href: '#/tools', label: '返回工具' })}
+      <span class="v5-kicker">TOOL</span>
+      <h1>${esc(item.title || item.name || '')}</h1>
+      <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+    </section>`;
+  }
+  if (!enabled) {
     return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: '返回工具' })}<h1>工具不存在或已关闭</h1></section>`;
   }
   const head = `
@@ -564,6 +653,10 @@ function renderFoot() {
   const contacts = (state.data.home && state.data.home.contacts) || [];
   const email = contacts.find((c) => (c.label || '').includes('邮箱'));
   const contactItems = contacts.map((c) => {
+    if (isLocked(c)) {
+      const inner = `<span class="foot-contact-label">${esc(c.title || c.label || '')}</span><span class="foot-contact-value">暂未公开</span>`;
+      return `<span class="foot-contact-item">${inner}</span>`;
+    }
     const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${esc(c.value)}</span>`;
     if (c.url) return `<a class="foot-contact-item" href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${inner}<span class="foot-contact-arrow">${ARROW}</span></a>`;
     return `<span class="foot-contact-item">${inner}</span>`;
@@ -574,7 +667,7 @@ function renderFoot() {
     <div class="foot-top">
       <div>
         <h2 class="foot-title">有想法，<br>随时聊。</h2>
-        ${email ? `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${esc(email.value)}</a>` : ''}
+        ${email ? (isLocked(email) ? `<span class="foot-mail">暂未公开</span>` : `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${esc(email.value)}</a>`) : ''}
         <p class="foot-motto">无限进步</p>
       </div>
       <div class="foot-contact-list">

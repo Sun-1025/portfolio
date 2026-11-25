@@ -77,17 +77,40 @@ $baseTree = Invoke-GH -Method Get -Uri "/repos/$Owner/$Repo/git/trees/$($baseCom
 Write-Output "Base commit: $($ref.object.sha)"
 Write-Output "Base tree: $($baseCommit.tree.sha) ($($baseTree.tree.Count) entries)"
 
+function Get-GitBlobSha {
+    param([byte[]] $Bytes)
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try {
+        $header = [Text.Encoding]::UTF8.GetBytes("blob $($Bytes.Length)`0")
+        $buffer = New-Object byte[] ($header.Length + $Bytes.Length)
+        [Array]::Copy($header, 0, $buffer, 0, $header.Length)
+        [Array]::Copy($Bytes, 0, $buffer, $header.Length, $Bytes.Length)
+        $hash = $sha1.ComputeHash($buffer)
+        return (($hash | ForEach-Object { $_.ToString('x2') }) -join '')
+    } finally {
+        $sha1.Dispose()
+    }
+}
+
 $entries = @()
 $files = Get-ChildItem -LiteralPath $dist -Recurse -File -Force
+$existing = @{}
+foreach ($item in $baseTree.tree) { if ($item.type -eq 'blob') { $existing[$item.path] = $item.sha } }
 foreach ($file in $files) {
     $remote = $file.FullName.Substring($dist.Length + 1).Replace('\', '/')
     $bytes = [IO.File]::ReadAllBytes($file.FullName)
-    $blob = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
-        content = [Convert]::ToBase64String($bytes)
-        encoding = 'base64'
+    $localSha = Get-GitBlobSha -Bytes $bytes
+    if ($existing.ContainsKey($remote) -and $existing[$remote] -eq $localSha) {
+        $blobSha = $localSha
+        Write-Output ("  = {0} {1} B (unchanged)" -f $remote, $bytes.Length)
+    } else {
+        $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
+            content = [Convert]::ToBase64String($bytes)
+            encoding = 'base64'
+        }).sha
+        Write-Output ("  + {0} {1} B {2}" -f $remote, $bytes.Length, $blobSha.Substring(0, 8))
     }
-    $entries += @{ path = $remote; mode = '100644'; type = 'blob'; sha = $blob.sha }
-    Write-Output ("  {0} {1} B {2}" -f $remote, $bytes.Length, $blob.sha.Substring(0, 8))
+    $entries += @{ path = $remote; mode = '100644'; type = 'blob'; sha = $blobSha }
 }
 
 $cname = $baseTree.tree | Where-Object { $_.path -eq 'CNAME' -and $_.type -eq 'blob' } | Select-Object -First 1
@@ -100,7 +123,7 @@ $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{
     tree = $entries
 }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: rebuild portfolio v6 — pointer probe, live readouts, sourced tooltips'
+    message = 'feat: 重建静态站 —— 可视化 CMS 数据、私密过滤、内容占位'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

@@ -12,7 +12,8 @@
     "bio": {
       "oneLine": "孙志昊，山东石油化工学院 2025 级物联网工程。方向是嵌入式、物联网系统，延伸 AI / Agent 应用。",
       "paragraph": "已掌握 SQL Server、C 语言、C++，其余在学。做过个人主页、在线工具箱、家用语音监测系统、图书管理系统和一门少儿物理公益课。开放实习。"
-    }
+    },
+    "updatedAt": "2026-11-24T23:49:51.048Z"
   },
   "nav": [
     {
@@ -21,7 +22,9 @@
       "type": "route",
       "target": "internship",
       "visible": true,
-      "order": 1
+      "order": 1,
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "experience",
@@ -29,7 +32,9 @@
       "type": "route",
       "target": "experience",
       "visible": true,
-      "order": 2
+      "order": 2,
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "interest",
@@ -37,7 +42,9 @@
       "type": "route",
       "target": "interest",
       "visible": true,
-      "order": 3
+      "order": 3,
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     }
   ],
   "branches": [
@@ -47,7 +54,9 @@
       "type": "builtin",
       "visible": true,
       "order": 1,
-      "description": "技术名片、成长档案、工具入口"
+      "description": "技术名片、成长档案、工具入口",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "internship",
@@ -55,7 +64,9 @@
       "type": "builtin",
       "visible": true,
       "order": 2,
-      "description": "校内预备实习与东营区图书馆实践"
+      "description": "校内预备实习与东营区图书馆实践",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "experience",
@@ -63,7 +74,9 @@
       "type": "builtin",
       "visible": true,
       "order": 3,
-      "description": "项目主体与四段时间线"
+      "description": "项目主体与四段时间线",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "work",
@@ -71,7 +84,9 @@
       "type": "builtin",
       "visible": true,
       "order": 4,
-      "description": "项目详情页，兼容旧地址"
+      "description": "项目详情页，兼容旧地址",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "interest",
@@ -79,7 +94,9 @@
       "type": "builtin",
       "visible": true,
       "order": 5,
-      "description": "六格兴趣与照片"
+      "description": "六格兴趣与照片",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "tools",
@@ -87,7 +104,9 @@
       "type": "builtin",
       "visible": true,
       "order": 6,
-      "description": "本地小工具"
+      "description": "本地小工具",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "classic",
@@ -95,7 +114,9 @@
       "type": "legacy",
       "visible": true,
       "order": 7,
-      "description": "原版页面，保留"
+      "description": "原版页面，保留",
+      "status": "published",
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     }
   ],
   "home": {
@@ -143,25 +164,45 @@
         "no": "01",
         "label": "校内预备实习",
         "meta": "在学校",
-        "text": "参与项目实践，做整体串联和调试。前后端与 UI 交互不兼容时，前端用 AOS 滚动和响应式交互，后端把 GitHub Pages 与 Gitee Pages 的路径接起来。"
+        "text": "参与项目实践，做整体串联和调试。前后端与 UI 交互不兼容时，前端用 AOS 滚动和响应式交互，后端把 GitHub Pages 与 Gitee Pages 的路径接起来。",
+        "id": "timeline-校内预备实习",
+        "status": "published",
+        "visible": true,
+        "order": 0,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "no": "02",
         "label": "东营区图书馆",
         "meta": "校外实践",
-        "text": "把「小小物理学家探险队」的课程带进图书馆。课程设计、现场授课、场地和物料对接都要跟。"
+        "text": "把「小小物理学家探险队」的课程带进图书馆。课程设计、现场授课、场地和物料对接都要跟。",
+        "id": "timeline-东营区图书馆",
+        "status": "published",
+        "visible": true,
+        "order": 1,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "no": "03",
         "label": "青年志愿者协会",
         "meta": "校园",
-        "text": "参加协会的志愿活动，做的主要是活动准备和现场协调。"
+        "text": "参加协会的志愿活动，做的主要是活动准备和现场协调。",
+        "id": "timeline-青年志愿者协会",
+        "status": "published",
+        "visible": true,
+        "order": 2,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "no": "04",
         "label": "科技协会",
         "meta": "校园",
-        "text": "参与协会里的项目管理和赛事准备，记进度、对流程、搬物料。"
+        "text": "参与协会里的项目管理和赛事准备，记进度、对流程、搬物料。",
+        "id": "timeline-科技协会",
+        "status": "published",
+        "visible": true,
+        "order": 3,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       }
     ],
     "about": {
@@ -234,33 +275,59 @@
       "belief": {
         "lines": [],
         "quote": "无限进步。"
-      }
+      },
+      "updatedAt": "2026-11-24T23:49:51.096Z"
     },
     "contacts": [
       {
         "label": "邮箱",
         "value": "1322816531@qq.com",
-        "url": "mailto:1322816531@qq.com"
+        "url": "mailto:1322816531@qq.com",
+        "id": "contact-邮箱",
+        "status": "published",
+        "visible": true,
+        "order": 0,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "label": "QQ",
         "value": "1322816531",
-        "url": "https://wpa.qq.com/msgrd?v=3&uin=1322816531&site=qq&menu=yes"
+        "url": "https://wpa.qq.com/msgrd?v=3&uin=1322816531&site=qq&menu=yes",
+        "id": "contact-qq",
+        "status": "published",
+        "visible": true,
+        "order": 1,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "label": "GitHub",
         "value": "github.com/Sun-1025",
-        "url": "https://github.com/Sun-1025"
+        "url": "https://github.com/Sun-1025",
+        "id": "contact-github",
+        "status": "published",
+        "visible": true,
+        "order": 2,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "label": "Gitee",
         "value": "gitee.com/SunZHAO1025",
-        "url": "https://gitee.com/SunZHAO1025"
+        "url": "https://gitee.com/SunZHAO1025",
+        "id": "contact-gitee",
+        "status": "published",
+        "visible": true,
+        "order": 3,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "label": "微信",
         "value": "暂密",
-        "url": ""
+        "url": "",
+        "id": "contact-微信",
+        "status": "published",
+        "visible": true,
+        "order": 4,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       }
     ],
     "campus": [
@@ -269,14 +336,24 @@
         "text": "第六届全体见面会",
         "image": "/assets/photos/campus/qingxie.webp",
         "alt": "孙志昊站在青协第六届全体见面会现场",
-        "caption": "第六届全体见面会，站在台下"
+        "caption": "第六届全体见面会，站在台下",
+        "id": "campus-青年志愿者协会",
+        "status": "published",
+        "visible": true,
+        "order": 0,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "title": "科技协会",
         "text": "备赛桌上的书和笔记",
         "image": "/assets/photos/campus/kexie.webp",
         "alt": "备赛桌上摊着书、笔记和电脑",
-        "caption": "备赛桌上摊着书、笔记和电脑"
+        "caption": "备赛桌上摊着书、笔记和电脑",
+        "id": "campus-科技协会",
+        "status": "published",
+        "visible": true,
+        "order": 1,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       }
     ]
   },
@@ -322,7 +399,11 @@
           }
         ],
         "result": "现在还在改，先把内容和图片换成真的。",
-        "cover": "/assets/covers/site.svg"
+        "cover": "/assets/covers/site.svg",
+        "status": "published",
+        "visible": true,
+        "order": 0,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "case-tools",
@@ -356,7 +437,11 @@
           }
         ],
         "result": "能本地跑的就本地跑，不能做的写清楚。",
-        "cover": "/assets/covers/tools.svg"
+        "cover": "/assets/covers/tools.svg",
+        "status": "published",
+        "visible": true,
+        "order": 1,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "case-voice",
@@ -390,7 +475,11 @@
           }
         ],
         "result": "从声音到看得见的提醒，整条链路自己跑过。",
-        "cover": "/assets/covers/voice.svg"
+        "cover": "/assets/covers/voice.svg",
+        "status": "published",
+        "visible": true,
+        "order": 2,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "case-lib",
@@ -429,7 +518,11 @@
           }
         ],
         "result": "一套能编译运行的工程，数据层落在 SQL Server。",
-        "cover": "/assets/covers/library.svg"
+        "cover": "/assets/covers/library.svg",
+        "status": "published",
+        "visible": true,
+        "order": 3,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "case-physics",
@@ -470,7 +563,11 @@
           }
         ],
         "result": "现在还在上，课程一轮轮改。",
-        "cover": "/assets/photos/projects/physics-01.webp"
+        "cover": "/assets/photos/projects/physics-01.webp",
+        "status": "published",
+        "visible": true,
+        "order": 4,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       }
     ]
   },
@@ -492,7 +589,11 @@
           "alt": "孙志昊在乡间绿道上骑车，两侧是稻田和树林",
           "caption": "绿道两侧是稻田和树林"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 0,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "badminton",
@@ -511,7 +612,11 @@
           "alt": "孙志昊打完球，手里拿着羽毛球，手表显示四十分钟",
           "caption": "打完四十分钟，手里还攥着球"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 1,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "hiking",
@@ -530,7 +635,11 @@
           "alt": "游客沿着山道石阶往上走，前面是红墙庙宇",
           "caption": "山道上人不少，前面是红墙"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 2,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "beijing",
@@ -564,7 +673,11 @@
           "alt": "园林水边的锦鲤和亭子",
           "caption": "园林水边的锦鲤和亭子"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 3,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "zibo",
@@ -598,7 +711,11 @@
           "alt": "孙志昊在书店里拿《文城》挡住脸",
           "caption": "书店里拿《文城》挡住脸"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 4,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     },
     {
       "id": "jinan",
@@ -632,7 +749,11 @@
           "alt": "阴天里的超然楼正面",
           "caption": "阴天里的超然楼正面"
         }
-      ]
+      ],
+      "status": "published",
+      "visible": true,
+      "order": 5,
+      "updatedAt": "2026-11-24T13:56:57.235Z"
     }
   ],
   "tools": {
@@ -651,7 +772,11 @@
         "featured": true,
         "order": 0,
         "problem": "图片、文档、表格、音频等格式互转，批量处理，结果直接下载。",
-        "prereq": "文件在本地，浏览器能读取；转换后自己打开确认一遍。"
+        "prereq": "文件在本地，浏览器能读取；转换后自己打开确认一遍。",
+        "title": "文件转换台",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "markdown",
@@ -663,7 +788,11 @@
         "enabled": true,
         "order": 1,
         "problem": "把 Markdown 写成 HTML，左边改，右边看。",
-        "prereq": "浏览器本地运行，适合短文档；复杂排版还要自己检查。"
+        "prereq": "浏览器本地运行，适合短文档；复杂排版还要自己检查。",
+        "title": "Markdown 转 HTML",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "wordcount",
@@ -675,7 +804,11 @@
         "enabled": true,
         "order": 2,
         "problem": "统计字符、词数、行数和大致阅读时间。",
-        "prereq": "中英文混排也能算，结果只作参考。"
+        "prereq": "中英文混排也能算，结果只作参考。",
+        "title": "字数统计",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "unit",
@@ -687,7 +820,11 @@
         "enabled": true,
         "order": 3,
         "problem": "长度、质量、面积、温度、存储单位互换。",
-        "prereq": "按常用换算口径，工程精度要求高时别直接拿它当标准。"
+        "prereq": "按常用换算口径，工程精度要求高时别直接拿它当标准。",
+        "title": "单位换算",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       },
       {
         "id": "date",
@@ -699,7 +836,11 @@
         "enabled": true,
         "order": 4,
         "problem": "算两个日期差几天，或从某天加减天数。",
-        "prereq": "按本地日期计算，跨时区要自己核对。"
+        "prereq": "按本地日期计算，跨时区要自己核对。",
+        "title": "日期计算",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-24T13:56:57.235Z"
       }
     ]
   },
@@ -710,13 +851,15 @@
       "你在做什么项目",
       "会哪些技术",
       "能实习吗"
-    ]
+    ],
+    "updatedAt": "2026-11-24T13:56:57.235Z"
   },
   "notices": [],
   "settings": {
     "sessionHours": 4,
     "idleMinutes": 30,
     "classicLabel": "经典版",
-    "showClassic": true
+    "showClassic": true,
+    "updatedAt": "2026-11-24T13:56:57.235Z"
   }
 }

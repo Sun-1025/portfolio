@@ -68,7 +68,7 @@ function getContent() {
   return data;
 }
 
-function saveContent(next) {
+function saveContent(next, meta = null) {
   if (!next || typeof next !== 'object' || Array.isArray(next)) {
     throw new Error('content must be a JSON object');
   }
@@ -79,7 +79,7 @@ function saveContent(next) {
   ensureDirs();
   backupSite();
   writeAtomic(SITE_FILE, next);
-  emitContentChange({ at: Date.now(), bytes: json.length });
+  emitContentChange(meta || { at: Date.now(), bytes: json.length });
   return { bytes: json.length };
 }
 
@@ -136,6 +136,7 @@ module.exports = {
   ensureDirs,
   readJSON,
   writeAtomic,
+  backupSite,
   getContent,
   saveContent,
   onContentChange,

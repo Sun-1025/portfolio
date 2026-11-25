@@ -67,7 +67,8 @@ $paths = @(
     'data/site.json',
     'docs/v5/01-change-list.md', 'docs/v5/02-deploy.md', 'docs/v5/03-image-map.md',
     'docs/v5/04-copy.md', 'docs/v5/05-self-check.md', 'docs/v5/06-not-public.md',
-    'scripts/export-static.js', 'scripts/init-admin.js',
+    'docs/后台使用手册.md', 'docs/cms-改造说明.md',
+    'scripts/export-static.js', 'scripts/init-admin.js', 'scripts/migrate-content.js',
     'sync/deploy-v5-pages.ps1', 'sync/deploy-v6-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
 )
 $dirs = @('src', 'public', 'ai-server')
@@ -85,23 +86,48 @@ $paths = $paths | Sort-Object -Unique
 Write-Output "Repo: $Owner/$Repo ($Branch), files: $($paths.Count)"
 $ref = Invoke-GH -Method Get -Uri "/repos/$Owner/$Repo/git/ref/heads/$Branch"
 $commit = Invoke-GH -Method Get -Uri "/repos/$Owner/$Repo/git/commits/$($ref.object.sha)"
+$baseTree = Invoke-GH -Method Get -Uri "/repos/$Owner/$Repo/git/trees/$($commit.tree.sha)?recursive=1"
 Write-Output "Base commit: $($ref.object.sha)"
+
+function Get-GitBlobSha {
+    param([byte[]] $Bytes)
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try {
+        $header = [Text.Encoding]::UTF8.GetBytes("blob $($Bytes.Length)`0")
+        $buffer = New-Object byte[] ($header.Length + $Bytes.Length)
+        [Array]::Copy($header, 0, $buffer, 0, $header.Length)
+        [Array]::Copy($Bytes, 0, $buffer, $header.Length, $Bytes.Length)
+        $hash = $sha1.ComputeHash($buffer)
+        return (($hash | ForEach-Object { $_.ToString('x2') }) -join '')
+    } finally {
+        $sha1.Dispose()
+    }
+}
+
+$existing = @{}
+foreach ($item in $baseTree.tree) { if ($item.type -eq 'blob') { $existing[$item.path] = $item.sha } }
 
 $entries = @()
 foreach ($rel in $paths) {
     $file = Join-Path $root ($rel.Replace('/', '\'))
     if (-not (Test-Path -LiteralPath $file)) { throw "missing source file: $rel" }
     $bytes = [IO.File]::ReadAllBytes($file)
-    $blob = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
-        content = [Convert]::ToBase64String($bytes)
-        encoding = 'base64'
+    $localSha = Get-GitBlobSha -Bytes $bytes
+    if ($existing.ContainsKey($rel) -and $existing[$rel] -eq $localSha) {
+        $blobSha = $localSha
+        Write-Output ("  = {0} {1} B (unchanged)" -f $rel, $bytes.Length)
+    } else {
+        $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
+            content = [Convert]::ToBase64String($bytes)
+            encoding = 'base64'
+        }).sha
+        Write-Output ("  + {0} {1} B {2}" -f $rel, $bytes.Length, $blobSha.Substring(0, 8))
     }
-    $entries += @{ path = $rel; mode = '100644'; type = 'blob'; sha = $blob.sha }
-    Write-Output ("  {0} {1} B" -f $rel, $bytes.Length)
+    $entries += @{ path = $rel; mode = '100644'; type = 'blob'; sha = $blobSha }
 }
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: portfolio v5 source — minimal tech, real photos, docs'
+    message = 'feat: 可视化内容后台（CMS）—— 卡片式管理、私密/草稿双过滤、回收站与发布'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

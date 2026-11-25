@@ -143,9 +143,47 @@ async function main() {
   copy(path.join(PUBLIC, 'assets'), path.join(OUT, 'assets'));
   copy(path.join(PUBLIC, 'tools'), path.join(OUT, 'tools'));
   copy(path.join(PUBLIC, 'classic'), path.join(OUT, 'classic'));
-  copy(DATA, path.join(OUT, 'data', 'site.json'));
+
+  // 数据：私密/草稿过滤后再导出（与公开接口同一套语义）
+  const { filterPublic, privateImageRefs, isDraft, isDeleted, isPrivate } = require('../src/content-filter');
+  const rawContent = JSON.parse(fs.readFileSync(DATA, 'utf8'));
+  const publicContent = filterPublic(rawContent);
+  const privateRefs = privateImageRefs(rawContent);
+  fs.mkdirSync(path.join(OUT, 'data'), { recursive: true });
+  fs.writeFileSync(path.join(OUT, 'data', 'site.json'), JSON.stringify(publicContent, null, 2) + '\n', 'utf8');
+
   if (fs.existsSync(path.join(PUBLIC, 'uploads'))) {
     copy(path.join(PUBLIC, 'uploads'), path.join(OUT, 'uploads'));
+  }
+  // 私密上传目录整个跳过
+  const privateUploads = path.join(OUT, 'uploads', 'private');
+  if (fs.existsSync(privateUploads)) fs.rmSync(privateUploads, { recursive: true, force: true });
+
+  // 私密条目引用的图片：只有当公开内容完全没在用时才从静态包剔除
+  if (privateRefs.size) {
+    const publicRefs = new Set();
+    const walkStrings = (node) => {
+      if (typeof node === 'string') {
+        if (node.startsWith('/assets/') || node.startsWith('/uploads/')) publicRefs.add(node.replace(/^\/+/, ''));
+        return;
+      }
+      if (Array.isArray(node)) { node.forEach(walkStrings); return; }
+      if (node && typeof node === 'object') Object.values(node).forEach(walkStrings);
+    };
+    walkStrings(publicContent);
+    for (const rel of privateRefs) {
+      if (publicRefs.has(rel)) continue;
+      const file = path.join(OUT, rel.replace(/\//g, path.sep));
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+  }
+
+  const privateCount = Array.isArray(publicContent.work?.cases)
+    ? publicContent.work.cases.filter((c) => c.note === '暂未公开').length
+    : 0;
+  const draftCount = rawContent.work?.cases ? rawContent.work.cases.filter((c) => isDraft(c) || isDeleted(c)).length : 0;
+  if (privateCount || draftCount) {
+    log(`  私密过滤：${privateCount} 条占位、${draftCount} 条草稿/回收站已剥离`);
   }
 
   // 后台资源不进静态包

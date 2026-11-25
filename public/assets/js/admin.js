@@ -1,1074 +1,1437 @@
 /* ============================================================
-   管理后台：登录 / 内容编辑 / 结构排序 / 上传 / 备份
+   可视化内容后台（CMS）
+   - 每条内容一张卡：新建 / 编辑 / 删除 / 排序 / 公开·私密·草稿
+   - 抽屉式编辑器 + 实时预览 + 本地草稿 + 审计 / 备份 / 发布
    ============================================================ */
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const state = {
-  content: null,
   user: null,
-  tab: 'overview',
-  dirty: false,
-  caseId: null,
-  media: [],
-  backups: [],
-  saving: false,
-  expiresAt: null,
+  expiresAt: 0,
+  content: null,
+  tab: 'case',
+  filter: 'all',
+  q: '',
+  selected: new Set(),
+  drawer: null, // { type, id, isNew, draft, orig, dirty, savedAt }
+  draftTimer: null,
+  uploadPath: null,
+  publish: { running: false, timer: null, step: '', log: [] },
+  backups: null,
+  audit: null,
+  media: null,
   sessionTimer: null,
 };
 
-const TABS = [
-  { id: 'overview', label: '概览', n: '00' },
-  { id: 'site', label: '站点信息', n: '01' },
-  { id: 'nav', label: '导航与分支', n: '02' },
-  { id: 'home', label: '首页内容', n: '03' },
-  { id: 'work', label: '项目案例', n: '04' },
-  { id: 'tools', label: '工具管理', n: '05' },
-  { id: 'notices', label: '公告', n: '06' },
-  { id: 'media', label: '媒体库', n: '07' },
-  { id: 'backups', label: '备份恢复', n: '08' },
-  { id: 'account', label: '账号设置', n: '09' },
+const STATUS_LABEL = {
+  public: '公开',
+  private: '私密',
+  draft: '草稿',
+  trash: '回收站',
+};
+
+/* ---------------- 字段 schema ---------------- */
+
+const F = (key, label, kind = 'text', extra = {}) => Object.assign({ key, label, kind }, extra);
+
+const TYPES = [
+  {
+    id: 'case', label: '项目', path: ['work', 'cases'], single: false, icon: '▣',
+    desc: '项目与公益实践详情页',
+    fields: [
+      F('title', '标题'), F('number', '编号', 'half'), F('kind', '类型', 'text', { hint: '可留空' }),
+      F('category', '分类', 'select', { options: [['project', '项目'], ['practice', '公益实践']] }),
+      F('org', '归属'), F('period', '时间'), F('role', '角色'),
+      F('summary', '摘要（首页卡片的一句话）', 'textarea'),
+      F('cover', '封面图', 'image'),
+      F('tags', '标签', 'tags'),
+      F('sections', '正文分节（h 小标题 / p 段落，支持 Markdown）', 'sections', { markdown: true }),
+      F('result', '结果 / 留下什么', 'markdown'),
+      F('links', '外链', 'links'),
+      F('images', '项目图集', 'images'),
+    ],
+    preview: (id) => `#/work/${id}`,
+  },
+  {
+    id: 'interest', label: '兴趣相册', path: ['interests'], single: false, icon: '◧',
+    fields: [
+      F('title', '标题'), F('lead', '一句介绍', 'textarea', { md: true }),
+      F('ratio', '首图比例', 'text', { hint: '例如 4/3，可留空' }),
+      F('cover', '封面', 'image'),
+      F('images', '相册图片', 'images'),
+    ],
+    preview: (id) => `#/interest/${id}`,
+  },
+  {
+    id: 'tool', label: '工具', path: ['tools', 'items'], single: false, icon: '⚙',
+    fields: [
+      F('name', '名称'), F('category', '分类', 'select', { options: [['convert', '转换'], ['query', '查询']] }),
+      F('module', '模块文件', 'text', { hint: '例如 converter.js' }),
+      F('desc', '一句话说明', 'textarea'),
+      F('problem', '解决什么问题', 'textarea'),
+      F('prereq', '使用前提', 'text'),
+      F('enabled', '在工具页显示', 'bool'),
+      F('featured', '作为主工具', 'bool'),
+    ],
+    preview: (id) => `#/tools/${id}`,
+  },
+  {
+    id: 'timeline', label: '时间线', path: ['home', 'timeline'], single: false, icon: '≡',
+    fields: [
+      F('no', '编号', 'half'), F('label', '标题'), F('meta', '时间 / 单位', 'half'),
+      F('text', '说明', 'textarea'),
+    ],
+    preview: () => '#/experience',
+  },
+  {
+    id: 'campus', label: '校园照片', path: ['home', 'campus'], single: false, icon: '▤',
+    fields: [
+      F('title', '标题'), F('text', '说明', 'textarea'),
+      F('image', '照片', 'image'), F('alt', '图片替代文字'), F('caption', '图注'),
+    ],
+    preview: () => '#/experience',
+  },
+  {
+    id: 'contact', label: '联系方式', path: ['home', 'contacts'], single: false, icon: '✉',
+    fields: [
+      F('label', '名称（如 邮箱 / 微信）'), F('value', '展示值'),
+      F('url', '链接（mailto: 或 https://）', 'url'),
+    ],
+    preview: () => '',
+  },
+  {
+    id: 'nav', label: '导航', path: ['nav'], single: false, icon: '◇',
+    fields: [F('label', '名称'), F('type', '类型'), F('target', '目标', 'text', { hint: '路由或链接' })],
+    preview: () => '',
+  },
+  {
+    id: 'branch', label: '分支', path: ['branches'], single: false, icon: '⑂',
+    fields: [F('label', '名称'), F('type', '类型'), F('description', '说明', 'textarea')],
+    preview: () => '',
+  },
+  {
+    id: 'notice', label: '公告', path: ['notices'], single: false, icon: '!',
+    fields: [F('title', '标题'), F('text', '内容', 'textarea'), F('time', '时间')],
+    preview: () => '',
+  },
+  {
+    id: 'site', label: '站点信息', path: ['site'], single: true, icon: '◎',
+    fields: [
+      F('title', '站点标题'), F('brand', '品牌名'), F('tagline', '口号'), F('description', '描述', 'textarea'),
+      F('avatar', '头像', 'image'), F('themeColor', '主题色', 'color'), F('accent', '强调色', 'color'),
+      F('footer', '页脚文案', 'textarea'),
+      F('bio', '一句话 / 简介', 'group', {
+        sub: [F('oneLine', '一句话'), F('paragraph', '段落', 'textarea')],
+      }),
+    ],
+    preview: () => '',
+  },
+  {
+    id: 'hero', label: '首屏', path: ['home', 'hero'], single: true, icon: '▰',
+    fields: [
+      F('eyebrow', '眉标'), F('title', '大标题'), F('intro', '介绍', 'textarea'),
+      F('tags', '标签', 'tags'),
+      F('primary', '主按钮', 'group', { sub: [F('label', '文案'), F('href', '链接', 'url')] }),
+      F('secondary', '次按钮', 'group', { sub: [F('label', '文案'), F('href', '链接', 'url')] }),
+      F('profile', '档案行', 'kv'),
+    ],
+    preview: () => '',
+  },
+  {
+    id: 'about', label: '关于', path: ['home', 'about'], single: true, icon: '◍',
+    fields: [
+      F('title', '标题'), F('lead', '引言', 'textarea'),
+      F('lines', '简介行', 'strlist'),
+      F('facts', '事实', 'kv'),
+      F('abilities', '能力', 'obj2', { a: 't', b: 'd', al: '能力', bl: '说明', bKind: 'textarea' }),
+      F('skills', '技能', 'obj2', { a: 'n', b: 'd', al: '名称', bl: '说明' }),
+      F('belief', '信念', 'group', {
+        sub: [F('lines', '行', 'strlist'), F('quote', '引用', 'textarea')],
+      }),
+    ],
+    preview: () => '',
+  },
+  {
+    id: 'ai', label: 'AI 助手', path: ['ai'], single: true, icon: '✦',
+    fields: [
+      F('enabled', '启用', 'bool'),
+      F('endpoint', '接口地址', 'url'),
+      F('quick', '快捷问题', 'strlist'),
+    ],
+    preview: () => '',
+  },
+  {
+    id: 'settings', label: '设置', path: ['settings'], single: true, icon: '☰',
+    fields: [
+      F('sessionHours', '登录时长（小时）', 'number'), F('idleMinutes', '空闲退出（分钟）', 'number'),
+      F('classicLabel', '经典版名称'), F('showClassic', '显示经典版入口', 'bool'),
+    ],
+    preview: () => '',
+  },
 ];
 
-const CATS = [
-  ['project', '项目'], ['internship', '实习'], ['campus', '校园'], ['hobby', '兴趣'],
-];
+const TYPE_MAP = Object.fromEntries(TYPES.map((t) => [t.id, t]));
 
-function esc(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+/* ---------------- 工具 ---------------- */
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function toast(message, isError = false) {
+function getPath(obj, path) {
+  let cur = obj;
+  for (const key of path) {
+    if (cur == null) return undefined;
+    cur = cur[key];
+  }
+  return cur;
+}
+
+function setPath(obj, path, value) {
+  let cur = obj;
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const key = path[i];
+    if (cur[key] == null || typeof cur[key] !== 'object') cur[key] = /^\d+$/.test(path[i + 1]) ? [] : {};
+    cur = cur[key];
+  }
+  cur[path[path.length - 1]] = value;
+}
+
+function clone(v) {
+  return JSON.parse(JSON.stringify(v == null ? null : v));
+}
+
+async function api(path, opts = {}) {
+  const init = { method: opts.method || 'GET', credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } };
+  if (opts.body !== undefined) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(path, init);
+  let data = null;
+  try { data = await res.json(); } catch (err) { data = null; }
+  if (res.status === 401) {
+    renderLogin();
+    throw new Error('登录已过期，请重新登录');
+  }
+  if (!res.ok || (data && data.ok === false)) {
+    const msg = (data && (data.error || (data.errors && data.errors.join('；'))) ) || `请求失败（${res.status}）`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function toast(msg, type = 'ok') {
   let el = $('#toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'toast';
-    el.className = 'toast';
+    el.className = 'ad-toast';
     document.body.appendChild(el);
   }
-  el.textContent = message;
-  el.classList.toggle('is-error', isError);
+  el.textContent = msg;
+  el.dataset.type = type;
   el.classList.add('is-on');
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove('is-on'), 2600);
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('is-on'), 2600);
 }
 
-async function api(url, options = {}) {
-  const opts = { credentials: 'same-origin', ...options };
-  if (opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData)) {
-    opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-    opts.body = JSON.stringify(opts.body);
+function statusOf(item) {
+  if (!item) return 'draft';
+  if (item.deletedAt) return 'trash';
+  if (item.status === 'draft') return 'draft';
+  if (item.visible === false) return 'private';
+  return 'public';
+}
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return '刚刚更新';
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 更新`;
+}
+
+function titleOf(type, item) {
+  return item.title || item.label || item.name || item.text || '未命名';
+}
+
+function subOf(type, item) {
+  if (type.id === 'case') return item.summary || '';
+  if (type.id === 'interest') return item.lead || '';
+  if (type.id === 'tool') return item.desc || item.problem || '';
+  if (type.id === 'timeline') return item.text || item.meta || '';
+  if (type.id === 'campus') return item.text || '';
+  if (type.id === 'contact') return item.visible === false ? '' : (item.value || '');
+  if (type.id === 'notice') return item.text || '';
+  if (type.id === 'nav') return item.target || '';
+  if (type.id === 'branch') return item.description || '';
+  if (type.id === 'site') return item.tagline || '';
+  if (type.id === 'hero') return item.intro || '';
+  if (type.id === 'about') return item.lead || '';
+  if (type.id === 'ai') return item.endpoint || '';
+  if (type.id === 'settings') return '登录时长等运行参数';
+  return '';
+}
+
+function thumbOf(type, item) {
+  let src = '';
+  if (type.id === 'case') src = item.cover || (item.images && item.images[0] && (item.images[0].src || item.images[0])) || '';
+  else if (type.id === 'interest') src = item.cover || (item.images && item.images[0] && (item.images[0].src || item.images[0])) || '';
+  else if (type.id === 'campus') src = item.image || '';
+  else if (type.id === 'site') src = item.avatar || '';
+  if (src && typeof src === 'string') {
+    const suffix = src.startsWith('/uploads/private/') ? '' : '';
+    return `<img src="${esc(src)}${suffix}" alt="" loading="lazy" decoding="async">`;
   }
-  let res;
-  try {
-    res = await fetch(url, opts);
-  } catch (err) {
-    throw new Error('网络请求失败，请确认服务已启动');
-  }
-  const isJson = (res.headers.get('content-type') || '').includes('json');
-  const data = isJson ? await res.json() : { ok: res.ok, text: await res.text() };
-  if (res.status === 401 && url !== '/api/auth/login') {
-    renderLogin('登录已过期，请重新登录');
-    throw new Error('登录已过期');
-  }
-  if (!res.ok || data.ok === false) throw new Error(data.error || `请求失败（${res.status}）`);
-  return data;
+  const ch = String(titleOf(type, item)).slice(0, 1) || '·';
+  return `<div class="ad-card-ph"><span>${esc(ch)}</span></div>`;
 }
 
 /* ---------------- 登录 ---------------- */
 
-function renderLogin(message = '') {
-  clearInterval(state.sessionTimer);
-  state.expiresAt = null;
-  document.body.className = '';
+function renderLogin(msg = '') {
   document.body.innerHTML = `
-    <div class="login-wrap">
-      <form class="login-card" id="loginForm">
-        <div class="mark">PORTFOLIO / ADMIN</div>
-        <h1>后台登录</h1>
-        <p>登录后可修改网站全部内容，保存即生效。</p>
-        <div class="f"><label for="lgUser">账号</label><input id="lgUser" name="username" autocomplete="username" required></div>
-        <div class="f"><label for="lgPass">密码</label><input id="lgPass" name="password" type="password" autocomplete="current-password" required></div>
-        <div class="login-error" id="lgErr">${esc(message)}</div>
-        <button class="btn btn--primary" type="submit" style="width:100%;padding:10px">进入后台</button>
-        <div class="foot"><a href="/">← 返回网站首页</a></div>
+  <main class="ad-login">
+    <div class="ad-login-card">
+      <p class="ad-login-kicker">SZH / ADMIN</p>
+      <h1>内容后台</h1>
+      <p class="ad-login-sub">登录后可以看到网站的每一条内容，改完即时生效。</p>
+      <form id="loginForm" autocomplete="on">
+        <label><span>账号</span><input name="username" autocomplete="username" required></label>
+        <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <p class="ad-login-err" id="loginErr">${esc(msg)}</p>
+        <button class="ad-btn ad-btn--primary ad-btn--block" type="submit">登录</button>
       </form>
-    </div>`;
-
+      <p class="ad-login-note">后台只在本地 Node 服务里可用（<code>npm start</code> · localhost:8080/admin）。</p>
+    </div>
+  </main>`;
   $('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = $('button[type="submit"]', e.target);
-    const err = $('#lgErr');
+    const form = e.target;
+    const btn = $('button', form);
     btn.disabled = true;
-    err.textContent = '';
+    btn.textContent = '登录中…';
     try {
-      const res = await fetch('/api/auth/login', {
+      const data = await api('/api/auth/login', {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: $('#lgUser').value.trim(),
-          password: $('#lgPass').value,
-        }),
+        body: { username: form.username.value.trim(), password: form.password.value },
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || '登录失败');
       state.user = data.user;
-      await enterAdmin();
-    } catch (error) {
-      err.textContent = error.message;
+      state.expiresAt = data.expiresAt;
+      await boot();
+    } catch (err) {
+      $('#loginErr').textContent = err.message;
       btn.disabled = false;
+      btn.textContent = '登录';
     }
   });
 }
 
-/* ---------------- 引导 ---------------- */
-
-async function enterAdmin() {
-  const mode = await api('/api/auth/me').catch(() => null);
-  if (!mode) return;
-  state.user = mode.user;
-  state.expiresAt = mode.expiresAt || Date.now() + (mode.expiresInHours || 4) * 3600 * 1000;
-  state.content = await api('/api/content');
-  if (!state.caseId) state.caseId = (state.content.work.cases[0] || {}).id || null;
-  renderShell();
-}
+/* ---------------- 启动 ---------------- */
 
 async function boot() {
-  try {
-    const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (!me.ok) return renderLogin();
-    const data = await me.json();
-    state.user = data.user;
-    state.expiresAt = data.expiresAt || Date.now() + (data.expiresInHours || 4) * 3600 * 1000;
-    state.content = await api('/api/content');
-    if (!state.caseId) state.caseId = (state.content.work.cases[0] || {}).id || null;
-    renderShell();
-  } catch (err) {
-    renderLogin();
+  if (!state.user) {
+    try {
+      const me = await api('/api/auth/me');
+      if (!me.user) { renderLogin(); return; }
+      state.user = me.user;
+      state.expiresAt = me.expiresAt;
+    } catch (err) {
+      renderLogin();
+      return;
+    }
   }
-}
-
-/* ---------------- 框架 ---------------- */
-
-function renderShell() {
-  document.body.className = '';
-  document.body.innerHTML = `
-    <div class="admin-shell">
-      <aside class="side">
-        <div class="side-brand"><b>${esc(state.content.site.brand)}</b><span>Content Studio</span></div>
-        <nav class="side-nav" id="sideNav">
-          ${TABS.map((t) => `<button type="button" data-tab="${t.id}"><span class="n">${t.n}</span>${t.label}</button>`).join('')}
-        </nav>
-        <div class="side-bottom">
-          <a href="/" target="_blank" rel="noopener">打开新版网站 ↗</a>
-          <a href="/classic/" target="_blank" rel="noopener">打开经典版 ↗</a>
-          <button type="button" id="logoutBtn">退出登录</button>
-        </div>
-      </aside>
-      <div class="main">
-        <div class="topline">
-          <div>
-            <div class="crumb" id="crumb">ADMIN / OVERVIEW</div>
-            <h2 id="topTitle">概览</h2>
-          </div>
-          <div class="grow"></div>
-          <span class="session-clock" id="sessionClock">会话校验中…</span>
-          <span class="dirty-dot">有未保存的修改</span>
-          <button class="btn btn--sm" type="button" id="reloadBtn">放弃修改</button>
-          <button class="btn btn--primary btn--sm" type="button" id="saveBtn" disabled>保存修改</button>
-        </div>
-        <main class="panel" id="panel"></main>
-      </div>
-    </div>
-    <div class="toast" id="toast"></div>`;
-
-  $('#sideNav').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-tab]');
-    if (!btn) return;
-    switchTab(btn.dataset.tab);
-  });
-  $('#saveBtn').addEventListener('click', saveContent);
-  $('#reloadBtn').addEventListener('click', async () => {
-    if (!confirm('放弃当前未保存的修改，重新从服务器加载？')) return;
-    state.content = await api('/api/content');
-    state.dirty = false;
-    syncDirty();
-    switchTab(state.tab);
-    toast('已重新加载服务器内容');
-  });
-  $('#logoutBtn').addEventListener('click', logout);
-
+  await loadContent();
+  renderShell();
   startSessionClock();
-  switchTab(state.tab || 'overview');
 }
 
-/* 登录态倒计时：到时自动回登录页，避免后台长时间开着却仍可操作。 */
+async function loadContent() {
+  state.content = await api('/api/admin/content');
+}
+
 function startSessionClock() {
   clearInterval(state.sessionTimer);
   const tick = () => {
-    const clock = $('#sessionClock');
-    if (!clock) return;
-    const left = (state.expiresAt || 0) - Date.now();
+    const left = state.expiresAt - Date.now();
+    const el = $('#sessionLeft');
+    if (!el) return;
+    if (!state.expiresAt) { el.textContent = '—'; return; }
     if (left <= 0) {
+      el.textContent = '登录已过期';
       clearInterval(state.sessionTimer);
-      renderLogin('会话已超时，请重新登录');
+      renderLogin('登录已过期，请重新登录');
       return;
     }
-    const h = Math.floor(left / 3600000);
-    const m = Math.floor((left % 3600000) / 60000);
-    clock.textContent = `会话剩余 ${h}h ${String(m).padStart(2, '0')}m`;
-    clock.classList.toggle('is-soon', left < 15 * 60 * 1000);
+    const m = Math.floor(left / 60000);
+    el.textContent = m >= 60 ? `${Math.floor(m / 60)} 小时 ${m % 60} 分` : `${m} 分钟后到期`;
   };
   tick();
-  state.sessionTimer = setInterval(tick, 30000);
+  state.sessionTimer = setInterval(tick, 15000);
 }
 
-function syncDirty() {
-  document.body.classList.toggle('is-dirty', state.dirty);
-  const save = $('#saveBtn');
-  if (save) save.disabled = !state.dirty || state.saving;
+/* ---------------- 外壳 ---------------- */
+
+function typeRows(type) {
+  const raw = getPath(state.content, type.path);
+  if (type.single) return raw ? [raw] : [];
+  return Array.isArray(raw) ? raw.slice() : [];
 }
 
-function markDirty() {
-  state.dirty = true;
-  syncDirty();
+function counts(type) {
+  const list = typeRows(type);
+  const c = { all: 0, public: 0, private: 0, draft: 0, trash: 0 };
+  for (const item of list) {
+    c.all += 1;
+    c[statusOf(item)] += 1;
+  }
+  return c;
+}
+
+function renderShell() {
+  const type = TYPE_MAP[state.tab];
+  const c = counts(type);
+  const side = `
+  <aside class="ad-side">
+    <div class="ad-side-head"><span>CONTENT</span><b>内容</b></div>
+    <nav class="ad-tabs">
+      ${TYPES.map((t) => {
+        const ct = counts(t);
+        return `<button class="ad-tab${t.id === state.tab ? ' is-on' : ''}" data-act="tab" data-tab="${t.id}">
+          <span class="ad-tab-icon">${t.icon}</span><span class="ad-tab-label">${t.label}</span>
+          <span class="ad-tab-count">${t.single ? '1' : ct.all}${ct.private ? `<i title="私密 ${ct.private} 条">${ct.private}</i>` : ''}</span>
+        </button>`;
+      }).join('')}
+      <button class="ad-tab ad-tab--sys${state.tab === 'system' ? ' is-on' : ''}" data-act="tab" data-tab="system">
+        <span class="ad-tab-icon">⌘</span><span class="ad-tab-label">系统</span><span class="ad-tab-count">…</span>
+      </button>
+    </nav>
+    <div class="ad-side-foot">
+      <p>发布 = 构建静态站并推 GitHub Pages</p>
+      <a href="/" target="_blank" rel="noopener">打开网站 ↗</a>
+    </div>
+  </aside>`;
+
+  document.body.innerHTML = `
+  <header class="ad-top">
+    <div class="ad-brand"><b>SZH</b><span>/ ADMIN</span></div>
+    <div class="ad-top-mid"><span id="saveState" class="ad-save-state">已同步</span><span class="ad-session">会话 <b id="sessionLeft">—</b></span></div>
+    <div class="ad-top-actions">
+      <button class="ad-btn ad-btn--ghost" data-act="publish">发布上线</button>
+      <a class="ad-btn ad-btn--ghost" href="/" target="_blank" rel="noopener">查看站点</a>
+      <button class="ad-btn ad-btn--ghost" data-act="logout">退出</button>
+    </div>
+  </header>
+  <div class="ad-body">
+    ${side}
+    <main class="ad-main" id="adMain">${state.tab === 'system' ? systemMain() : mainHtml(type, c)}</main>
+  </div>
+  <div class="ad-drawer-host" id="drawerHost"></div>
+  <div class="ad-modal-host" id="modalHost"></div>
+  <input type="file" id="filePick" accept="image/*" hidden>`;
+
+  bindGlobal();
+  startSessionClock();
+  if (state.tab === 'system') loadSystem();
+}
+
+function mainHtml(type, c) {
+  if (type.single) {
+    const item = typeRows(type)[0] || {};
+    return `
+    <div class="ad-main-head">
+      <div><span class="ad-kicker">SINGLE / ${type.id.toUpperCase()}</span><h1>${type.label}</h1><p class="ad-lead">单条内容，直接点开编辑；保存后前台立即生效。</p></div>
+    </div>
+    <div class="ad-cards ad-cards--single">${singleCard(type, item)}</div>`;
+  }
+  const filtered = filterRows(type, c);
+  return `
+  <div class="ad-main-head">
+    <div class="ad-head-copy"><span class="ad-kicker">${type.id.toUpperCase()} / ${c.all}</span><h1>${type.label}</h1><p class="ad-lead">${type.desc || ''}</p></div>
+    <div class="ad-head-tools">
+      <input class="ad-search" id="adSearch" type="search" placeholder="搜索标题…" value="${esc(state.q)}">
+      <button class="ad-btn ad-btn--primary" data-act="new">＋ 新建</button>
+    </div>
+  </div>
+  <div class="ad-filters">
+    ${[['all', '全部'], ['public', '公开'], ['private', '私密'], ['draft', '草稿'], ['trash', '回收站']].map(([k, label]) => (
+      `<button class="ad-filter${state.filter === k ? ' is-on' : ''}" data-act="filter" data-filter="${k}">${label}<span>${c[k]}</span></button>`
+    )).join('')}
+    ${state.tab === 'case' ? `<button class="ad-filter ad-filter--sel" data-act="selected">首页精选<span>${(state.content.home && state.content.home.selectedIds || []).length}</span></button>` : ''}
+  </div>
+  ${state.selected.size ? `<div class="ad-batchbar">
+    <span>已选 ${state.selected.size} 条</span>
+    <button class="ad-btn ad-btn--mini" data-act="batch" data-do="public">设为公开</button>
+    <button class="ad-btn ad-btn--mini" data-act="batch" data-do="private">设为私密</button>
+    <button class="ad-btn ad-btn--mini" data-act="batch" data-do="draft">设为草稿</button>
+    <button class="ad-btn ad-btn--mini ad-btn--danger" data-act="batch" data-do="trash">移入回收站</button>
+    <button class="ad-btn ad-btn--mini" data-act="batch" data-do="clear">取消选择</button>
+  </div>` : ''}
+  <div class="ad-hint">拖动卡片排序；选中卡片后按 Alt + ↑ / ↓ 也能换位。圆点是访客看不到的私密内容。</div>
+  <div class="ad-cards" id="cardGrid">${filtered.map((item, i) => cardHtml(type, item, i)).join('') || emptyHtml(type)}</div>`;
+}
+
+function filterRows(type, c) {
+  let list = typeRows(type).slice();
+  if (state.filter === 'trash') list = list.filter((x) => statusOf(x) === 'trash');
+  else if (state.filter !== 'all') list = list.filter((x) => statusOf(x) === state.filter);
+  if (state.q.trim()) {
+    const q = state.q.trim().toLowerCase();
+    list = list.filter((x) => String(titleOf(type, x)).toLowerCase().includes(q));
+  }
+  list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return list;
+}
+
+function emptyHtml(type) {
+  return `<div class="ad-empty"><p>这里还没有${type.label}。</p><button class="ad-btn ad-btn--primary" data-act="new">新建第一条</button></div>`;
+}
+
+function singleCard(type, item) {
+  return `<article class="ad-card ad-card--single" data-id="self" data-type="${type.id}" tabindex="0" role="button" data-act="edit">
+    <div class="ad-card-media">${thumbOf(type, item)}</div>
+    <div class="ad-card-body">
+      <h3>${esc(titleOf(type, item))}</h3>
+      <p>${esc(subOf(type, item))}</p>
+      <div class="ad-card-meta">${esc(fmtTime(item.updatedAt))}</div>
+    </div>
+    <div class="ad-card-acts"><button class="ad-btn ad-btn--mini" data-act="edit">编辑</button></div>
+  </article>`;
+}
+
+function cardHtml(type, item, index) {
+  const st = statusOf(item);
+  const selected = state.selected.has(item.id);
+  return `<article class="ad-card ad-card--${st}${selected ? ' is-selected' : ''}" data-id="${esc(item.id)}" data-type="${type.id}" data-index="${index}" tabindex="0" role="button" draggable="${st !== 'trash'}">
+    <label class="ad-check" data-act="check"><input type="checkbox" ${selected ? 'checked' : ''} tabindex="-1"></label>
+    <div class="ad-card-media">${thumbOf(type, item)}<span class="ad-badge ad-badge--${st}">${STATUS_LABEL[st]}</span></div>
+    <div class="ad-card-body">
+      <h3>${esc(titleOf(type, item))}</h3>
+      <p>${esc(subOf(type, item) || '—')}</p>
+      <div class="ad-card-meta">${esc(fmtTime(item.updatedAt))}${item.id ? ` · ${esc(item.id)}` : ''}</div>
+    </div>
+    <div class="ad-card-acts">
+      ${st === 'trash'
+        ? `<button data-act="restore" title="恢复">恢复</button><button data-act="purge" class="is-danger" title="彻底删除">彻底删除</button>`
+        : `<button data-act="vis" title="${st === 'private' ? '改为公开' : '设为私密'}">${st === 'private' ? '设为公开' : '设为私密'}</button>
+           <button data-act="status-draft" title="设为草稿">${st === 'draft' ? '已是草稿' : '存草稿'}</button>
+           <button data-act="edit">编辑</button>
+           <button data-act="del" class="is-danger">删除</button>`}
+    </div>
+  </article>`;
+}
+
+/* ---------------- 系统页 ---------------- */
+
+function systemMain() {
+  return `
+  <div class="ad-main-head">
+    <div><span class="ad-kicker">SYSTEM</span><h1>系统</h1><p class="ad-lead">账号、备份、操作记录、媒体库与发布。</p></div>
+  </div>
+  <div class="ad-sys-grid">
+    <section class="ad-panel">
+      <h2>账号</h2>
+      <p class="ad-panel-sub">当前登录：<b>${esc(state.user ? state.user.username : '')}</b></p>
+      <form id="pwdForm" class="ad-form">
+        <label><span>当前密码</span><input name="currentPassword" type="password" autocomplete="current-password" required></label>
+        <label><span>新密码（至少 8 位）</span><input name="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="ad-btn" type="submit">修改密码</button>
+      </form>
+    </section>
+    <section class="ad-panel">
+      <h2>发布</h2>
+      <p class="ad-panel-sub">构建静态站（含私密过滤）并推送到 GitHub Pages。</p>
+      <button class="ad-btn ad-btn--primary" data-act="publish">立即发布</button>
+      <pre class="ad-pub-log" id="pubLog">${esc(state.publish.log.slice(-12).join('\n') || '还没有发布记录。')}</pre>
+    </section>
+    <section class="ad-panel">
+      <h2>备份</h2>
+      <p class="ad-panel-sub">删除条目、整包导入前会自动备份。恢复会覆盖当前内容。</p>
+      <div class="ad-list" id="backupList"><p class="ad-muted">读取中…</p></div>
+    </section>
+    <section class="ad-panel">
+      <h2>操作记录</h2>
+      <p class="ad-panel-sub">最近 100 条：谁、何时、对哪条、做了什么。</p>
+      <div class="ad-list" id="auditList"><p class="ad-muted">读取中…</p></div>
+    </section>
+    <section class="ad-panel ad-panel--wide">
+      <h2>媒体库</h2>
+      <p class="ad-panel-sub">/uploads 与 /assets 里的图片。删除前确认没有内容在引用。</p>
+      <div class="ad-media" id="mediaGrid"><p class="ad-muted">读取中…</p></div>
+    </section>
+  </div>`;
+}
+
+async function loadSystem() {
+  try {
+    state.backups = await api('/api/backups');
+    const host = $('#backupList');
+    if (host) {
+      host.innerHTML = state.backups.items.length
+        ? state.backups.items.map((b) => `<div class="ad-row"><div><b>${esc(b.name)}</b><span>${(b.size / 1024).toFixed(0)} KB · ${esc(fmtTime(b.time))}</span></div><button class="ad-btn ad-btn--mini" data-act="restore-backup" data-name="${esc(b.name)}">恢复</button></div>`).join('')
+        : '<p class="ad-muted">还没有备份。</p>';
+    }
+  } catch (err) { toast(err.message, 'err'); }
+
+  try {
+    state.audit = await api('/api/admin/audit');
+    const host = $('#auditList');
+    if (host) {
+      host.innerHTML = state.audit.items.length
+        ? state.audit.items.slice(0, 40).map((a) => `<div class="ad-row ad-row--audit"><div><b>${esc(a.username || a.who || '')}</b> ${esc(a.action)}${a.id && a.id !== '-' ? ` · ${esc(a.type)}/${esc(a.id)}` : ` · ${esc(a.type)}`}<span>${esc(fmtTime(a.at))}${a.detail ? ' · ' + esc(a.detail) : ''}</span></div></div>`).join('')
+        : '<p class="ad-muted">还没有操作记录。</p>';
+    }
+  } catch (err) { /* ignore */ }
+
+  try {
+    state.media = await api('/api/admin/media');
+    const host = $('#mediaGrid');
+    if (host) {
+      host.innerHTML = state.media.items.slice(0, 60).map((m) => `<figure class="ad-media-item">
+        <img src="${esc(m.url)}" alt="" loading="lazy">
+        <figcaption><span>${esc(m.name)}</span>
+        <button data-act="copy-media" data-url="${esc(m.url)}">复制地址</button></figcaption>
+      </figure>`).join('') || '<p class="ad-muted">媒体库为空。</p>';
+    }
+  } catch (err) { /* ignore */ }
+}
+
+/* ---------------- 事件 ---------------- */
+
+function bindGlobal() {
+  if (document.body.dataset.bound === '1') return;
+  document.body.dataset.bound = '1';
+
+  document.addEventListener('click', onClick);
+  document.addEventListener('input', onInput);
+  document.addEventListener('change', onChange);
+  document.addEventListener('submit', onSubmitForm);
+  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('dragstart', onDragStart);
+  document.addEventListener('dragover', onDragOver);
+  document.addEventListener('drop', onDrop);
+  document.addEventListener('dragend', clearDragMark);
+}
+
+async function onSubmitForm(e) {
+  const form = e.target;
+  if (!form || form.id !== 'pwdForm') return;
+  e.preventDefault();
+  try {
+    const data = await api('/api/auth/password', {
+      method: 'POST',
+      body: { currentPassword: form.currentPassword.value, newPassword: form.newPassword.value },
+    });
+    state.expiresAt = data.expiresAt;
+    startSessionClock();
+    form.reset();
+    toast('密码已修改，会话已续期');
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+function closestAct(el) {
+  return el && el.closest ? el.closest('[data-act]') : null;
+}
+
+async function onClick(e) {
+  const actEl = closestAct(e.target);
+  if (!actEl) {
+    const card = e.target.closest('.ad-card');
+    if (card && !e.target.closest('button') && !e.target.closest('input') && !e.target.closest('label')) {
+      openDrawer(card.dataset.type, card.dataset.id);
+    }
+    return;
+  }
+  const act = actEl.dataset.act;
+  if (act === 'check' || act === 'toggle-selected') return; // 交给 change
+  if (act) e.preventDefault();
+
+  try {
+    if (act === 'tab') { switchTab(actEl.dataset.tab); return; }
+    if (act === 'filter') { state.filter = actEl.dataset.filter; state.selected.clear(); renderShell(); return; }
+    if (act === 'new') { openDrawer(state.tab, null, true); return; }
+    if (act === 'md-insert') { mdInsert(actEl.dataset.md); return; }
+    if (act === 'edit') { const card = actEl.closest('.ad-card'); openDrawer(card.dataset.type, card.dataset.id); return; }
+    if (act === 'close') { closeDrawer(); return; }
+    if (act === 'save') { await saveDrawer(); return; }
+    if (act === 'preview') { await openPreview(); return; }
+    if (act === 'del') { await trashItem(cardCtx(actEl)); return; }
+    if (act === 'restore') { await restoreItem(cardCtx(actEl)); return; }
+    if (act === 'purge') { await purgeItem(cardCtx(actEl)); return; }
+    if (act === 'vis') { await setStatus(cardCtx(actEl), pickVis(cardCtx(actEl))); return; }
+    if (act === 'status-draft') { await setStatus(cardCtx(actEl), 'draft'); return; }
+    if (act === 'batch') { await batch(actEl.dataset.do); return; }
+    if (act === 'selected') { openSelectedModal(); return; }
+    if (act === 'close-selected') { $('#modalHost').innerHTML = ''; return; }
+    if (act === 'save-selected') { await saveSelected(); return; }
+    if (act === 'add-row') { addRow(actEl); return; }
+    if (act === 'del-row') { delRow(actEl); return; }
+    if (act === 'move-row') { moveRow(actEl); return; }
+    if (act === 'upload') { pickFile(actEl.dataset.path); return; }
+    if (act === 'logout') { await api('/api/auth/logout', { method: 'POST' }); renderLogin(); return; }
+    if (act === 'publish') { await publish(); return; }
+    if (act === 'close-publish') { $('#publishPanel') && $('#publishPanel').remove(); return; }
+    if (act === 'copy-media') { copyText(actEl.dataset.url); return; }
+    if (act === 'restore-backup') { await restoreBackup(actEl.dataset.name); return; }
+    if (act === 'discard-draft') { discardLocalDraft(); return; }
+    if (act === 'apply-draft') { applyLocalDraft(); return; }
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+function cardCtx(el) {
+  const card = el.closest('.ad-card');
+  return { type: card.dataset.type, id: card.dataset.id };
 }
 
 function switchTab(tab) {
   state.tab = tab;
-  $$('#sideNav [data-tab]').forEach((b) => b.classList.toggle('is-on', b.dataset.tab === tab));
-  const meta = TABS.find((t) => t.id === tab) || TABS[0];
-  const crumb = $('#crumb');
-  const title = $('#topTitle');
-  if (crumb) crumb.textContent = `ADMIN / ${meta.id.toUpperCase()}`;
-  if (title) title.textContent = meta.label;
-  renderTab();
+  state.filter = 'all';
+  state.q = '';
+  state.selected.clear();
+  renderShell();
 }
 
-async function renderTab() {
-  const panel = $('#panel');
-  if (!panel) return;
-  panel.innerHTML = '<div class="loading">加载中…</div>';
+function onInput(e) {
+  const search = e.target.closest('#adSearch');
+  if (search) {
+    state.q = search.value;
+    const grid = $('#cardGrid');
+    const type = TYPE_MAP[state.tab];
+    if (grid && type) grid.innerHTML = filterRows(type, counts(type)).map((item, i) => cardHtml(type, item, i)).join('') || emptyHtml(type);
+    return;
+  }
+  const input = e.target.closest('[data-path]');
+  if (!input || !state.drawer) return;
+  const path = input.dataset.path.split('.');
+  let value;
+  if (input.type === 'checkbox') value = input.checked;
+  else if (input.dataset.kind === 'number') value = input.value === '' ? 0 : Number(input.value);
+  else value = input.value;
+  if (input.dataset.kind === 'taglist') value = input.value.split(/[，,]/).map((s) => s.trim()).filter(Boolean);
+  setPath(state.drawer.draft, path, value);
+  markDirty();
+}
+
+function onChange(e) {
+  if (e.target.id === 'filePick') { onFilePicked(e); return; }
+  const visRadio = e.target.closest('input[name="vis"]');
+  if (visRadio && state.drawer) {
+    $$('.ad-vis-opts label').forEach((l) => l.classList.toggle('is-on', $('input', l).checked));
+    if (state.drawer.isNew) {
+      const chip = $('.ad-drawer-head .ad-chip');
+      if (chip) { chip.className = `ad-chip ad-chip--${visRadio.value}`; chip.textContent = STATUS_LABEL[visRadio.value]; }
+      return;
+    }
+    applyVisibility(state.drawer.type, state.drawer.id, visRadio.value)
+      .then(async () => {
+        await loadContent();
+        const item = typeRows(TYPE_MAP[state.drawer.type]).find((x) => String(x.id) === String(state.drawer.id));
+        if (item) { state.drawer.draft.status = item.status; state.drawer.draft.visible = item.visible; }
+        toast(visRadio.value === 'private' ? '已设为私密' : visRadio.value === 'draft' ? '已存为草稿' : '已公开');
+      })
+      .catch((err) => toast(err.message, 'err'));
+    return;
+  }
+  const check = e.target.closest('[data-act="check"] input');
+  if (check) {
+    const card = e.target.closest('.ad-card');
+    const id = card.dataset.id;
+    if (check.checked) state.selected.add(id); else state.selected.delete(id);
+    card.classList.toggle('is-selected', check.checked);
+    refreshBatchBar();
+    return;
+  }
+  const toggle = e.target.closest('[data-act="selected-toggle"]');
+  if (toggle) { /* handled by click via label */ }
+  const input = e.target.closest('[data-path]');
+  if (input && state.drawer) {
+    let value;
+    if (input.type === 'checkbox') value = input.checked;
+    else if (input.dataset.kind === 'number') value = input.value === '' ? 0 : Number(input.value);
+    else if (input.dataset.kind === 'taglist') value = input.value.split(/[，,]/).map((s) => s.trim()).filter(Boolean);
+    else value = input.value;
+    setPath(state.drawer.draft, input.dataset.path.split('.'), value);
+    markDirty();
+  }
+}
+
+function refreshBatchBar() {
+  const bar = $('.ad-batchbar');
+  if (state.selected.size && !bar) renderShell();
+  else if (!state.selected.size && bar) { bar.remove(); $$('.ad-card.is-selected').forEach((c) => c.classList.remove('is-selected')); }
+  else if (bar) bar.querySelector('span').textContent = `已选 ${state.selected.size} 条`;
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape') {
+    if ($('#publishPanel')) { $('#publishPanel').remove(); return; }
+    if (state.drawer) { closeDrawer(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (state.drawer) saveDrawer().catch((err) => toast(err.message, 'err'));
+    else toast('没有正在编辑的内容');
+    return;
+  }
+  const card = e.target.closest && e.target.closest('.ad-card');
+  if (card && (e.key === 'Enter' || e.key === ' ')) {
+    if (e.target === card) {
+      e.preventDefault();
+      openDrawer(card.dataset.type, card.dataset.id);
+      return;
+    }
+  }
+  if (card && e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    e.preventDefault();
+    moveCard(card, e.key === 'ArrowUp' ? -1 : 1);
+  }
+}
+
+/* ---------------- 拖拽排序 ---------------- */
+
+let dragId = null;
+
+function onDragStart(e) {
+  const card = e.target.closest('.ad-card');
+  if (!card || card.dataset.id === 'self') return;
+  dragId = card.dataset.id;
+  card.classList.add('is-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragId);
+}
+
+function onDragOver(e) {
+  const card = e.target.closest('.ad-card');
+  if (!card || !dragId || card.dataset.id === dragId) return;
+  e.preventDefault();
+  $$('.ad-card').forEach((c) => c.classList.remove('is-over'));
+  card.classList.add('is-over');
+}
+
+function clearDragMark() {
+  $$('.ad-card').forEach((c) => c.classList.remove('is-over', 'is-dragging'));
+  dragId = null;
+}
+
+async function onDrop(e) {
+  const card = e.target.closest('.ad-card');
+  const id = dragId;
+  clearDragMark();
+  if (!card || !id || card.dataset.id === id) return;
+  e.preventDefault();
+  await reorderAround(id, card.dataset.id);
+}
+
+async function moveCard(card, delta) {
+  const type = TYPE_MAP[card.dataset.type];
+  if (!type || type.single) return;
+  if (state.filter !== 'all' || state.q) { toast('先切到「全部」再排序', 'err'); return; }
+  const ids = typeRows(type).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((x) => x.id);
+  const from = ids.indexOf(card.dataset.id);
+  const to = from + delta;
+  if (from < 0 || to < 0 || to >= ids.length) return;
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  await submitOrder(type, ids);
+}
+
+async function reorderAround(dragIdValue, targetId) {
+  const type = TYPE_MAP[state.tab];
+  if (!type || type.single) return;
+  if (state.filter !== 'all' || state.q) { toast('先切到「全部」再排序', 'err'); return; }
+  const list = typeRows(type).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const ids = list.map((x) => x.id);
+  const from = ids.indexOf(dragIdValue);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0) return;
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  await submitOrder(type, ids);
+}
+
+async function submitOrder(type, ids) {
+  await api(`/api/admin/content/${type.id}/reorder`, { method: 'POST', body: { ids } });
+  await loadContent();
+  renderShell();
+  toast('排序已保存');
+}
+
+/* ---------------- 抽屉 ---------------- */
+
+function openDrawer(typeId, id, isNew = false) {
+  const type = TYPE_MAP[typeId];
+  if (!type) return;
+  if (state.drawer && state.drawer.dirty) {
+    saveLocalDraft();
+    if (!confirm('当前还有未保存的修改（已存本地草稿），要打开另一条吗？')) return;
+  }
+  let item;
+  if (type.single) {
+    item = clone(typeRows(type)[0] || {});
+    id = 'self';
+  } else if (isNew) {
+    item = {};
+  } else {
+    item = clone(typeRows(type).find((x) => String(x.id) === String(id)) || null);
+  }
+  if (!item) { toast('内容不存在', 'err'); return; }
+  if (item.deletedAt) { toast('这条在回收站里，先点「恢复」再编辑', 'err'); return; }
+  if (type.id === 'tool') item.name = item.name || item.title || '';
+
+  state.drawer = {
+    type: type.id, id: isNew ? null : id, isNew,
+    draft: item, orig: clone(item), dirty: false, savedAt: null,
+  };
+  renderDrawer();
+  setTimeout(() => {
+    const first = $('#drawerBody input, #drawerBody textarea');
+    if (first) first.focus({ preventScroll: true });
+  }, 60);
+  checkLocalDraft();
+}
+
+function drawerFields(type, item) {
+  return type.fields.map((f) => fieldHtml(f, item[f.key], f.key)).join('');
+}
+
+function fieldHtml(f, value, path) {
+  const id = `fld-${path.replace(/\./g, '-')}`;
+  const label = `<div class="ad-field${f.kind === 'bool' ? ' ad-field--bool' : ''}${f.half ? ' ad-field--half' : ''}">
+    <span class="ad-field-label">${esc(f.label)}${f.hint ? `<i>${esc(f.hint)}</i>` : ''}</span>`;
+  const body = controlHtml(f, value, path, id);
+  return `${label}${body}</div>`;
+}
+
+function controlHtml(f, value, path, id) {
+  const v = value == null ? '' : value;
+  switch (f.kind) {
+    case 'textarea':
+      return `<textarea id="${id}" data-path="${path}" rows="3">${esc(v)}</textarea>`;
+    case 'markdown':
+      return `<div class="ad-md"><div class="ad-md-bar"><button type="button" data-act="md-insert" data-md="## ">H2</button><button type="button" data-act="md-insert" data-md="**粗体**">B</button><button type="button" data-act="md-insert" data-md="- ">列表</button><button type="button" data-act="md-insert" data-md="[链接](https://)">链接</button></div>
+      <textarea id="${id}" data-path="${path}" rows="5">${esc(v)}</textarea></div>`;
+    case 'url':
+      return `<input id="${id}" data-path="${path}" type="text" value="${esc(v)}" placeholder="https:// 或 mailto:">`;
+    case 'color':
+      return `<div class="ad-color"><input type="color" value="${esc(v || '#12110b')}" data-path="${path}" data-kind="color"><code>${esc(v || '')}</code></div>`;
+    case 'number':
+      return `<input id="${id}" data-path="${path}" data-kind="number" type="number" value="${esc(v)}">`;
+    case 'bool':
+      return `<span class="ad-switch"><input id="${id}" type="checkbox" data-path="${path}" ${v ? 'checked' : ''}><i></i></span>`;
+    case 'select':
+      return `<select id="${id}" data-path="${path}">${f.options.map(([ov, ol]) => `<option value="${esc(ov)}" ${String(v) === String(ov) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select>`;
+    case 'tags':
+      return `<textarea id="${id}" data-path="${path}" data-kind="taglist" rows="2" placeholder="用逗号分隔">${esc(Array.isArray(v) ? v.join('，') : v)}</textarea>`;
+    case 'strlist':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'str');
+    case 'kv':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'kv');
+    case 'obj2':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'obj2');
+    case 'sections':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'section');
+    case 'links':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'link');
+    case 'images':
+      return rowListHtml(f, path, Array.isArray(v) ? v : [], 'image');
+    case 'group':
+      return `<div class="ad-group">${(f.sub || []).map((sf) => fieldHtml(sf, (v && typeof v === 'object') ? v[sf.key] : '', `${path}.${sf.key}`)).join('')}</div>`;
+    case 'image':
+      return `<div class="ad-image"><div class="ad-image-preview">${v ? `<img src="${esc(v)}" alt="">` : '<span>无图</span>'}</div>
+        <input id="${id}" data-path="${path}" type="text" value="${esc(v)}" placeholder="/assets/photos/… 或上传">
+        <button type="button" class="ad-btn ad-btn--mini" data-act="upload" data-path="${path}">上传</button></div>`;
+    default:
+      return `<input id="${id}" data-path="${path}" type="text" value="${esc(v)}">`;
+  }
+}
+
+function rowListHtml(f, path, list, kind) {
+  const rows = list.map((row, i) => rowHtml(kind, f, `${path}.${i}`, row, i, list.length)).join('');
+  return `<div class="ad-rows" data-list="${path}" data-kind="${kind}">
+    ${rows || '<p class="ad-muted ad-rows-empty">暂无，点下面新增。</p>'}
+    <button type="button" class="ad-btn ad-btn--mini ad-btn--dash" data-act="add-row" data-path="${path}" data-kind="${kind}">＋ 新增一行</button>
+  </div>`;
+}
+
+function rowHtml(kind, f, path, row, index, total) {
+  const ctrl = `data-act="del-row" data-path="${path}"`;
+  const up = `<button type="button" class="ad-row-btn" data-act="move-row" data-dir="-1" data-path="${path}" ${index === 0 ? 'disabled' : ''}>↑</button>`;
+  const down = `<button type="button" class="ad-row-btn" data-act="move-row" data-dir="1" data-path="${path}" ${index === total - 1 ? 'disabled' : ''}>↓</button>`;
+  const del = `<button type="button" class="ad-row-btn is-danger" ${ctrl}>×</button>`;
+  let inner = '';
+  if (kind === 'str') {
+    inner = `<input type="text" data-path="${path}" value="${esc(row)}">`;
+  } else if (kind === 'kv') {
+    inner = `<input type="text" data-path="${path}.k" value="${esc(row && row.k || '')}" placeholder="键">
+             <input type="text" data-path="${path}.v" value="${esc(row && row.v || '')}" placeholder="值">`;
+  } else if (kind === 'obj2') {
+    inner = `<input type="text" data-path="${path}.${f.a}" value="${esc(row && row[f.a] || '')}" placeholder="${esc(f.al || '')}">
+             <textarea rows="2" data-path="${path}.${f.b}" placeholder="${esc(f.bl || '')}">${esc(row && row[f.b] || '')}</textarea>`;
+  } else if (kind === 'section') {
+    inner = `<input type="text" data-path="${path}.h" value="${esc(row && row.h || '')}" placeholder="小标题">
+             <textarea rows="3" data-path="${path}.p" placeholder="段落（支持 Markdown）">${esc(row && row.p || '')}</textarea>`;
+  } else if (kind === 'link') {
+    inner = `<input type="text" data-path="${path}.text" value="${esc(row && row.text || '')}" placeholder="文字">
+             <input type="text" data-path="${path}.url" value="${esc(row && row.url || '')}" placeholder="https://">`;
+  } else if (kind === 'image') {
+    const src = row && row.src || '';
+    inner = `<div class="ad-img-row">
+      <div class="ad-img-thumb">${src ? `<img src="${esc(src)}" alt="">` : '<span>—</span>'}</div>
+      <div class="ad-img-fields">
+        <input type="text" data-path="${path}.src" value="${esc(src)}" placeholder="图片地址">
+        <input type="text" data-path="${path}.alt" value="${esc(row && row.alt || '')}" placeholder="替代文字">
+        <input type="text" data-path="${path}.caption" value="${esc(row && row.caption || '')}" placeholder="图注">
+      </div>
+      <button type="button" class="ad-btn ad-btn--mini" data-act="upload" data-path="${path}.src">上传</button>
+    </div>`;
+  }
+  return `<div class="ad-row${kind === 'image' ? ' ad-row--image' : ''}">${inner}<div class="ad-row-moves">${up}${down}${del}</div></div>`;
+}
+
+function renderDrawer() {
+  const d = state.drawer;
+  if (!d) { $('#drawerHost').innerHTML = ''; return; }
+  const type = TYPE_MAP[d.type];
+  const st = d.isNew ? 'public' : statusOf(draftSource(d));
+  const title = d.isNew ? `新建${type.label}` : titleOf(type, d.draft);
+  $('#drawerHost').innerHTML = `
+  <div class="ad-drawer-backdrop" data-act="close"></div>
+  <aside class="ad-drawer" role="dialog" aria-modal="true" aria-label="${esc(type.label)}编辑器">
+    <header class="ad-drawer-head">
+      <div>
+        <span class="ad-kicker">${type.id.toUpperCase()} / ${d.isNew ? 'NEW' : esc(d.id)}</span>
+        <h2>${esc(title)}</h2>
+      </div>
+      <div class="ad-drawer-head-actions">
+        <span class="ad-chip ad-chip--${st}">${STATUS_LABEL[st]}</span>
+        <button class="ad-icon-btn" data-act="close" title="关闭（Esc）">×</button>
+      </div>
+    </header>
+    <div class="ad-drawer-note" id="draftNote"></div>
+    <div class="ad-drawer-body" id="drawerBody">
+      ${!type.single ? visibilityHtml(st) : ''}
+      <div class="ad-fields">${drawerFields(type, d.draft)}</div>
+    </div>
+    <footer class="ad-drawer-foot">
+      <button class="ad-btn" data-act="close">关闭</button>
+      <button class="ad-btn" data-act="preview">前台预览</button>
+      <button class="ad-btn ad-btn--primary" data-act="save">保存${d.dirty ? '（有修改）' : ''}</button>
+    </footer>
+  </aside>`;
+  document.body.classList.add('ad-lock');
+  updateSaveState();
+}
+
+function draftSource(d) {
+  if (d.isNew) return { status: 'draft', visible: true };
+  return typeRows(TYPE_MAP[d.type]).find((x) => String(x.id) === String(d.id)) || d.draft;
+}
+
+function visibilityHtml(st) {
+  return `<div class="ad-vis">
+    <span class="ad-vis-label">访客可见性</span>
+    <div class="ad-vis-opts">
+      <label class="${st === 'public' ? 'is-on' : ''}"><input type="radio" name="vis" value="public" ${st === 'public' ? 'checked' : ''}><b>公开</b><span>访客能看到完整内容</span></label>
+      <label class="${st === 'private' ? 'is-on' : ''}"><input type="radio" name="vis" value="private" ${st === 'private' ? 'checked' : ''}><b>私密</b><span>访客只看到标题和「暂未公开」</span></label>
+      <label class="${st === 'draft' ? 'is-on' : ''}"><input type="radio" name="vis" value="draft" ${st === 'draft' ? 'checked' : ''}><b>草稿</b><span>访客完全看不到这一条</span></label>
+    </div>
+  </div>`;
+}
+
+function markDirty() {
+  if (!state.drawer) return;
+  state.drawer.dirty = true;
+  const btn = $('.ad-drawer-foot [data-act="save"]');
+  if (btn) btn.textContent = '保存（有修改）';
+  updateSaveState();
+  clearTimeout(state.draftTimer);
+  state.draftTimer = setTimeout(saveLocalDraft, 5000);
+}
+
+function updateSaveState() {
+  const el = $('#saveState');
+  if (!el) return;
+  if (state.drawer && state.drawer.dirty) el.textContent = '未保存的修改';
+  else if (state.drawer && state.drawer.savedAt) el.textContent = `已保存 · ${new Date(state.drawer.savedAt).toLocaleTimeString('zh-CN', { hour12: false })}`;
+  else el.textContent = '已同步';
+}
+
+function localKey() {
+  const d = state.drawer;
+  return `szh-admin-draft:${d.type}:${d.isNew ? 'new' : d.id}`;
+}
+
+function saveLocalDraft() {
+  const d = state.drawer;
+  if (!d || !d.dirty) return;
   try {
-    if (state.tab === 'overview') panel.innerHTML = await viewOverview();
-    else if (state.tab === 'site') panel.innerHTML = viewSite();
-    else if (state.tab === 'nav') panel.innerHTML = viewNav();
-    else if (state.tab === 'home') panel.innerHTML = viewHome();
-    else if (state.tab === 'work') panel.innerHTML = viewWork();
-    else if (state.tab === 'tools') panel.innerHTML = viewTools();
-    else if (state.tab === 'notices') panel.innerHTML = viewNotices();
-    else if (state.tab === 'media') { await loadMedia(); panel.innerHTML = viewMedia(); }
-    else if (state.tab === 'backups') { await loadBackups(); panel.innerHTML = viewBackups(); }
-    else if (state.tab === 'account') panel.innerHTML = viewAccount();
-    else panel.innerHTML = viewOverview();
+    localStorage.setItem(localKey(), JSON.stringify({ fields: d.draft, at: Date.now() }));
+    const note = $('#draftNote');
+    if (note) note.innerHTML = `<span>本地草稿已存于本机 · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}</span>`;
+  } catch (err) { /* 容量满则跳过 */ }
+}
+
+function checkLocalDraft() {
+  const d = state.drawer;
+  const note = $('#draftNote');
+  if (!d || !note) return;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(localKey()) || 'null'); } catch (err) { saved = null; }
+  if (!saved || !saved.fields) return;
+  note.innerHTML = `<div class="ad-draft-banner"><span>发现 ${new Date(saved.at).toLocaleString('zh-CN', { hour12: false })} 的本地草稿</span>
+    <button class="ad-btn ad-btn--mini" data-act="apply-draft">恢复</button>
+    <button class="ad-btn ad-btn--mini" data-act="discard-draft">丢弃</button></div>`;
+}
+
+function applyLocalDraft() {
+  const d = state.drawer;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(localKey()) || 'null'); } catch (err) { saved = null; }
+  if (!d || !saved) return;
+  d.draft = saved.fields;
+  d.dirty = true;
+  renderDrawer();
+  toast('已恢复本地草稿，记得保存');
+}
+
+function discardLocalDraft() {
+  try { localStorage.removeItem(localKey()); } catch (err) { /* ignore */ }
+  const note = $('#draftNote');
+  if (note) note.innerHTML = '';
+  toast('已丢弃本地草稿');
+}
+
+function closeDrawer() {
+  const d = state.drawer;
+  if (!d) return;
+  if (d.dirty) {
+    saveLocalDraft();
+    if (!confirm('有未保存的修改，已留成本地草稿。确定关闭？')) return;
+  }
+  clearTimeout(state.draftTimer);
+  state.drawer = null;
+  $('#drawerHost').innerHTML = '';
+  document.body.classList.remove('ad-lock');
+  updateSaveState();
+}
+
+/* ---------------- 保存 ---------------- */
+
+async function saveDrawer() {
+  const d = state.drawer;
+  if (!d) return;
+  const type = TYPE_MAP[d.type];
+  const body = {};
+  for (const f of type.fields) {
+    if (d.draft[f.key] !== undefined) body[f.key] = d.draft[f.key];
+  }
+  if (!type.single && !d.isNew) {
+    const st = statusOf(draftSource(d));
+    if (!body.title && body.name) body.title = body.name;
+    if (st !== 'trash') {
+      // 可见性由单选框决定，先写回
+    }
+  }
+  const btn = $('.ad-drawer-foot [data-act="save"]');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  try {
+    let data;
+    if (d.isNew) {
+      data = await api(`/api/admin/content/${type.id}`, { method: 'POST', body });
+      d.id = data.id;
+      d.isNew = false;
+      d.orig = clone(data.item);
+    } else {
+      const target = type.single ? 'self' : d.id;
+      data = await api(`/api/admin/content/${type.id}/${encodeURIComponent(target)}`, { method: 'PATCH', body });
+    }
+    d.draft = clone(data.item);
+    d.orig = clone(data.item);
+    d.dirty = false;
+    d.savedAt = Date.now();
+    try { localStorage.removeItem(localKey()); } catch (err) { /* ignore */ }
+    await loadContent();
+    const visRadio = $('input[name="vis"]:checked');
+    if (!type.single && visRadio) {
+      await applyVisibility(type.id, d.id, visRadio.value);
+      d.draft = clone(typeRows(type).find((x) => String(x.id) === String(d.id)) || d.draft);
+      d.orig = clone(d.draft);
+    }
+    renderShell();
+    state.drawer = { type: d.type, id: d.id, isNew: false, draft: clone(d.draft), orig: clone(d.draft), dirty: false, savedAt: d.savedAt };
+    renderDrawer();
+    toast('已保存，前台立即生效');
   } catch (err) {
-    panel.innerHTML = `<div class="card"><p>加载失败：${esc(err.message)}</p></div>`;
+    toast(err.message, 'err');
+  } finally {
+    const b = $('.ad-drawer-foot [data-act="save"]');
+    if (b) { b.disabled = false; b.textContent = '保存'; }
+    updateSaveState();
   }
 }
 
-/* ---------------- 字段构造 ---------------- */
-
-function field(label, path, value, opts = {}) {
-  const type = opts.type || 'text';
-  const tip = opts.tip ? `<span class="tip">${esc(opts.tip)}</span>` : '';
-  const ph = opts.placeholder ? ` placeholder="${esc(opts.placeholder)}"` : '';
-  return `<div class="f">
-    <label for="f-${esc(path)}">${esc(label)}</label>
-    ${type === 'textarea'
-      ? `<textarea id="f-${esc(path)}" data-path="${esc(path)}" class="${opts.tall ? 'tall' : ''}"${ph}>${esc(value)}</textarea>`
-      : `<input id="f-${esc(path)}" data-path="${esc(path)}" type="${type}" value="${esc(value)}"${ph}${type === 'number' ? ' step="any" data-kind="number"' : ''}>`}
-    ${tip}
-  </div>`;
+async function applyVisibility(typeId, id, mode) {
+  const body = mode === 'draft' ? { status: 'draft' } : { status: 'published', visible: mode === 'public' };
+  await api(`/api/admin/content/${typeId}/${encodeURIComponent(id)}/visibility`, { method: 'PATCH', body });
 }
 
-function area(label, path, value, opts = {}) {
-  return field(label, path, value, { ...opts, type: 'textarea' });
+/* ---------------- 条目操作 ---------------- */
+
+async function setStatus(ctx, mode) {
+  const type = TYPE_MAP[ctx.type];
+  if (!type || type.single) return;
+  await applyVisibility(type.id, ctx.id, mode);
+  await loadContent();
+  renderShell();
+  toast(mode === 'private' ? '已设为私密：访客只看到标题和「暂未公开」' : mode === 'draft' ? '已存为草稿：访客完全看不到' : '已公开');
 }
 
-function listArea(label, path, value, mode, tip) {
-  const text = mode === 'csv' ? (value || []).join(', ') : (value || []).join('\n');
-  return `<div class="f">
-    <label for="f-${esc(path)}">${esc(label)}</label>
-    <textarea id="f-${esc(path)}" data-path="${esc(path)}" data-kind="${mode}" placeholder="${mode === 'csv' ? '用逗号分隔' : '一行一条'}">${esc(text)}</textarea>
-    ${tip ? `<span class="tip">${esc(tip)}</span>` : ''}
-  </div>`;
+function pickVis(ctx) {
+  const item = typeRows(TYPE_MAP[ctx.type]).find((x) => String(x.id) === String(ctx.id));
+  return statusOf(item) === 'private' ? 'public' : 'private';
 }
 
-function check(label, path, value) {
-  return `<div class="f check-line">
-    <input id="f-${esc(path)}" data-path="${esc(path)}" data-kind="check" type="checkbox" ${value ? 'checked' : ''}>
-    <label for="f-${esc(path)}">${esc(label)}</label>
-  </div>`;
+async function trashItem(ctx) {
+  if (!confirm('移入回收站？内容与图片都会保留，可随时恢复。')) return;
+  await api(`/api/admin/content/${ctx.type}/${encodeURIComponent(ctx.id)}`, { method: 'DELETE' });
+  await loadContent();
+  renderShell();
+  toast('已移入回收站');
 }
 
-function selectField(label, path, value, options) {
-  return `<div class="f">
-    <label for="f-${esc(path)}">${esc(label)}</label>
-    <select id="f-${esc(path)}" data-path="${esc(path)}">
-      ${options.map(([v, t]) => `<option value="${esc(v)}" ${v === value ? 'selected' : ''}>${esc(t)}</option>`).join('')}
-    </select>
-  </div>`;
+async function restoreItem(ctx) {
+  await api(`/api/admin/content/${ctx.type}/${encodeURIComponent(ctx.id)}/restore`, { method: 'POST' });
+  await loadContent();
+  renderShell();
+  toast('已从回收站恢复');
 }
 
-function imageField(label, path, value) {
-  return `<div class="f">
-    <label>${esc(label)}</label>
-    <div style="display:flex;gap:10px;align-items:flex-start">
-      <img src="${esc(value)}" alt="" style="width:88px;height:66px;object-fit:cover;border:1px solid var(--adm-line);border-radius:7px;background:#eee">
-      <div style="flex:1;min-width:0">
-        <input data-path="${esc(path)}" type="text" value="${esc(value)}" placeholder="/assets/xxx.webp 或 /uploads/xxx.png" style="width:100%;padding:8px 10px;border:1px solid var(--adm-line);border-radius:7px;background:var(--adm-soft)">
-        <div class="actions" style="margin-top:6px">
-          <button class="btn btn--sm" type="button" data-upload="${esc(path)}">上传图片</button>
-          <button class="btn btn--sm" type="button" data-pick-media="${esc(path)}">从媒体库选择</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
+async function purgeItem(ctx) {
+  if (!confirm('彻底删除？会先自动备份 site.json，但删除后不能从后台恢复。')) return;
+  await api(`/api/admin/content/${ctx.type}/${encodeURIComponent(ctx.id)}?purge=1`, { method: 'DELETE' });
+  await loadContent();
+  renderShell();
+  toast('已彻底删除（已自动备份）');
 }
 
-function rowHead(index, title, arrayPath, extra = '') {
-  return `<div class="row-head">
-    <span class="idx">${String(index + 1).padStart(2, '0')}</span>
-    <b>${esc(title)}</b>
-    <div class="row-actions">
-      ${extra}
-      <button class="icon-btn" type="button" data-act="up" data-array="${esc(arrayPath)}" data-index="${index}" title="上移">↑</button>
-      <button class="icon-btn" type="button" data-act="down" data-array="${esc(arrayPath)}" data-index="${index}" title="下移">↓</button>
-      <button class="icon-btn danger" type="button" data-act="del" data-array="${esc(arrayPath)}" data-index="${index}" title="删除">×</button>
-    </div>
-  </div>`;
-}
-
-/* ---------------- 概览 ---------------- */
-
-async function viewOverview() {
-  let health = null;
-  try { health = await api('/api/health'); } catch (err) { /* ignore */ }
-  const c = state.content;
-  const enabledTools = (c.tools.items || []).filter((t) => t.enabled !== false).length;
-  const visibleNav = (c.nav || []).filter((n) => n.visible !== false).length;
-  const source = state.dirty ? '有未保存修改' : '与服务器一致';
-
-  return `
-    <div class="panel-head"><h1>内容概览</h1><p>这里改的不是代码，是数据。保存后前台通过 SSE 自动刷新。</p></div>
-    <div class="kpis">
-      <div class="kpi"><b>${(c.work.cases || []).length}</b><span>项目案例</span></div>
-      <div class="kpi"><b>${enabledTools}</b><span>启用工具</span></div>
-      <div class="kpi"><b>${visibleNav}</b><span>导航入口</span></div>
-      <div class="kpi"><b>${(c.home.about.lines || []).length}</b><span>关于我段落</span></div>
-    </div>
-    <div class="card">
-      <h3>运行状态</h3>
-      <p class="desc">服务 ${health ? '在线' : '未响应'}，数据状态：${esc(source)}。</p>
-      <div class="notice-list">
-        <div class="notice-item"><span class="t">ADMIN</span><span>登录账号 <b>${esc(state.user ? state.user.username : '')}</b>，登录后 4 小时自动失效。</span></div>
-        <div class="notice-item"><span class="t">DATA</span><span>数据文件 data/site.json，每次保存自动留备份，最多保留 30 份。</span></div>
-        <div class="notice-item"><span class="t">PUBLISH</span><span>本地服务保存即生效；GitHub Pages 需要运行静态导出并推送后生效。</span></div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>快捷操作</h3>
-      <p class="desc">常用入口，避免来回翻菜单。</p>
-      <div class="actions">
-        <button class="btn" type="button" data-goto="site">改站点信息</button>
-        <button class="btn" type="button" data-goto="home">改首页</button>
-        <button class="btn" type="button" data-goto="work">改项目</button>
-        <button class="btn" type="button" data-goto="tools">管工具</button>
-        <button class="btn" type="button" data-goto="media">传图片</button>
-      </div>
-    </div>`;
-}
-
-/* ---------------- 站点信息 ---------------- */
-
-function viewSite() {
-  const s = state.content.site;
-  return `
-    <div class="panel-head"><h1>站点信息</h1><p>品牌名、SEO 描述、头像与页脚，全站共用。</p></div>
-    <div class="card">
-      <h3>基础信息</h3>
-      <div class="grid-2">
-        ${field('品牌名', 'site.brand', s.brand)}
-        ${field('浏览器标题', 'site.title', s.title)}
-      </div>
-      ${field('一句话签名', 'site.tagline', s.tagline)}
-      ${area('SEO 描述', 'site.description', s.description, { tall: false })}
-      ${imageField('头像', 'site.avatar', s.avatar)}
-      <div class="grid-3">
-        ${field('主题色', 'site.themeColor', s.themeColor, { tip: '浏览器地址栏颜色，如 #12110b' })}
-        ${field('强调色', 'site.accent', s.accent)}
-        ${field('页脚版权', 'site.footer', s.footer)}
-      </div>
-    </div>`;
-}
-
-/* ---------------- 导航与分支 ---------------- */
-
-function viewNav() {
-  const c = state.content;
-  const nav = c.nav || [];
-  const branches = c.branches || [];
-
-  const navRows = nav.map((n, i) => `
-    <div class="row-card">
-      ${rowHead(i, n.label || '未命名菜单', 'nav')}
-      <div class="grid-3">
-        ${field('显示文字', `nav.${i}.label`, n.label)}
-        ${selectField('类型', `nav.${i}.type`, n.type, [['route', '站内路由'], ['link', '外部 / 静态链接']])}
-        ${field('目标', `nav.${i}.target`, n.target, { tip: 'route 填 home / work / tools；link 填 /classic/ 或完整网址' })}
-      </div>
-      <div class="grid-3">
-        ${field('排序', `nav.${i}.order`, n.order, { type: 'number' })}
-        ${check('在导航显示', `nav.${i}.visible`, n.visible !== false)}
-      </div>
-    </div>`).join('');
-
-  const branchRows = branches.map((b, i) => `
-    <div class="row-card">
-      ${rowHead(i, b.label || '未命名分支', 'branches')}
-      <div class="grid-3">
-        ${field('分支名称', `branches.${i}.label`, b.label)}
-        ${field('ID', `branches.${i}.id`, b.id, { tip: '唯一标识，保存后尽量不改' })}
-        ${selectField('类型', `branches.${i}.type`, b.type, [['builtin', '内置页面'], ['legacy', '旧版页面'], ['custom', '自定义']])}
-      </div>
-      <div class="grid-3">
-        ${field('排序', `branches.${i}.order`, b.order, { type: 'number' })}
-        ${check('启用', `branches.${i}.visible`, b.visible !== false)}
-      </div>
-      ${field('说明', `branches.${i}.description`, b.description)}
-    </div>`).join('');
-
-  return `
-    <div class="panel-head"><h1>导航与分支</h1><p>控制顶部菜单的顺序、显隐，以及站点分支的开关。</p></div>
-    <div class="card">
-      <h3>顶部导航</h3>
-      <p class="desc">排序数字越小越靠前；隐藏只影响导航，不删除内容。</p>
-      ${navRows || '<div class="empty">还没有导航项</div>'}
-      <button class="btn" type="button" data-act="add" data-array="nav">+ 新增导航项</button>
-    </div>
-    <div class="card">
-      <h3>站点分支</h3>
-      <p class="desc">分支用于标记站点结构，经典版属于 legacy 类型，页面文件在 /classic/。</p>
-      ${branchRows || '<div class="empty">还没有分支</div>'}
-      <button class="btn" type="button" data-act="add" data-array="branches">+ 新增分支</button>
-    </div>`;
-}
-
-/* ---------------- 首页 ---------------- */
-
-function viewHome() {
-  const h = state.content.home;
-  const hero = h.hero || {};
-  const about = h.about || {};
-
-  const stats = (h.stats || []).map((s, i) => `
-    <div class="row-card">
-      ${rowHead(i, `${s.value || '—'} / ${s.label || '指标'}`, 'home.stats')}
-      <div class="grid-2">
-        ${field('数值', `home.stats.${i}.value`, s.value)}
-        ${field('说明', `home.stats.${i}.label`, s.label)}
-      </div>
-    </div>`).join('');
-
-  const facts = (about.facts || []).map((f, i) => `
-    <div class="row-card">
-      ${rowHead(i, `${f.k || '字段'}：${f.v || ''}`, 'home.about.facts')}
-      <div class="grid-2">
-        ${field('字段名', `home.about.facts.${i}.k`, f.k)}
-        ${field('内容', `home.about.facts.${i}.v`, f.v)}
-      </div>
-    </div>`).join('');
-
-  const abilities = (about.abilities || []).map((a, i) => `
-    <div class="row-card">
-      ${rowHead(i, a.t || '能力', 'home.about.abilities')}
-      ${field('标题', `home.about.abilities.${i}.t`, a.t)}
-      ${area('正文', `home.about.abilities.${i}.d`, a.d)}
-    </div>`).join('');
-
-  const skills = (about.skills || []).map((s, i) => `
-    <div class="row-card">
-      ${rowHead(i, s.n || '技能', 'home.about.skills')}
-      <div class="grid-2">
-        ${field('名称', `home.about.skills.${i}.n`, s.n)}
-        ${check('高亮显示', `home.about.skills.${i}.hot`, Boolean(s.hot))}
-      </div>
-    </div>`).join('');
-
-  const future = (about.future || []).map((f, i) => `
-    <div class="row-card">
-      ${rowHead(i, f.t || '阶段', 'home.about.future')}
-      ${field('阶段标题', `home.about.future.${i}.t`, f.t)}
-      ${area('说明', `home.about.future.${i}.d`, f.d)}
-    </div>`).join('');
-
-  const contacts = (h.contacts || []).map((c, i) => `
-    <div class="row-card">
-      ${rowHead(i, `${c.label || '联系方式'} · ${c.value || ''}`, 'home.contacts')}
-      <div class="grid-3">
-        ${field('标签', `home.contacts.${i}.label`, c.label)}
-        ${field('显示值', `home.contacts.${i}.value`, c.value)}
-        ${field('链接', `home.contacts.${i}.url`, c.url, { tip: '邮箱填 mailto:，网页填 https://；可留空' })}
-      </div>
-    </div>`).join('');
-
-  return `
-    <div class="panel-head"><h1>首页内容</h1><p>首屏、数据条、关于我、能力与联系方式。</p></div>
-
-    <div class="card">
-      <h3>首屏 Hero</h3>
-      ${field('上方小字', 'home.hero.eyebrow', hero.eyebrow)}
-      ${area('主标题', 'home.hero.title', hero.title, { tip: '需要换行时直接回车，前台会保留换行' })}
-      ${area('引导语', 'home.hero.intro', hero.intro)}
-      <div class="grid-2">
-        ${field('主按钮文字', 'home.hero.primary.label', (hero.primary || {}).label)}
-        ${field('主按钮链接', 'home.hero.primary.href', (hero.primary || {}).href)}
-        ${field('次按钮文字', 'home.hero.secondary.label', (hero.secondary || {}).label)}
-        ${field('次按钮链接', 'home.hero.secondary.href', (hero.secondary || {}).href)}
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>数据条</h3>
-      <p class="desc">首屏下方的四个关键数字。</p>
-      ${stats || '<div class="empty">暂无数据条</div>'}
-      <button class="btn" type="button" data-act="add" data-array="home.stats">+ 新增指标</button>
-    </div>
-
-    <div class="card">
-      <h3>关于我</h3>
-      ${field('区块标题', 'home.about.title', about.title)}
-      ${field('区块副标题', 'home.about.lead', about.lead)}
-      ${listArea('正文段落', 'home.about.lines', about.lines, 'lines', '一行一段，前台按段落渲染')}
-      <button class="btn btn--sm" type="button" data-act="add" data-array="home.about.lines">+ 新增段落</button>
-    </div>
-
-    <div class="card">
-      <h3>个人档案</h3>
-      ${facts || '<div class="empty">暂无档案字段</div>'}
-      <button class="btn" type="button" data-act="add" data-array="home.about.facts">+ 新增字段</button>
-    </div>
-
-    <div class="card">
-      <h3>能力介绍</h3>
-      ${abilities}
-      <button class="btn" type="button" data-act="add" data-array="home.about.abilities">+ 新增能力</button>
-    </div>
-
-    <div class="card">
-      <h3>技能标签</h3>
-      <div class="grid-2">${skills}</div>
-      <button class="btn" type="button" data-act="add" data-array="home.about.skills">+ 新增技能</button>
-    </div>
-
-    <div class="card">
-      <h3>个人理念</h3>
-      ${listArea('理念段落', 'home.about.belief.lines', (about.belief || {}).lines, 'lines')}
-      <button class="btn btn--sm" type="button" data-act="add" data-array="home.about.belief.lines">+ 新增段落</button>
-      ${field('金句', 'home.about.belief.quote', (about.belief || {}).quote)}
-    </div>
-
-    <div class="card">
-      <h3>未来方向</h3>
-      ${future}
-      <button class="btn" type="button" data-act="add" data-array="home.about.future">+ 新增阶段</button>
-    </div>
-
-    <div class="card">
-      <h3>联系方式</h3>
-      ${contacts}
-      <button class="btn" type="button" data-act="add" data-array="home.contacts">+ 新增联系方式</button>
-    </div>`;
-}
-
-/* ---------------- 项目案例 ---------------- */
-
-function viewWork() {
-  const work = state.content.work;
-  const cases = work.cases || [];
-  if (!cases.length) {
-    return `<div class="panel-head"><h1>项目案例</h1></div>
-      <div class="card"><div class="empty">还没有案例</div><button class="btn" data-act="add" data-array="work.cases">+ 新增案例</button></div>`;
+async function batch(doWhat) {
+  if (doWhat === 'clear') {
+    state.selected.clear();
+    renderShell();
+    return;
   }
-  if (!state.caseId || !cases.some((c) => c.id === state.caseId)) state.caseId = cases[0].id;
-  const index = cases.findIndex((c) => c.id === state.caseId);
-  const c = cases[index];
+  const type = state.tab;
+  const ids = Array.from(state.selected);
+  if (!ids.length) return;
+  if (doWhat === 'trash' && !confirm(`把选中的 ${ids.length} 条移入回收站？`)) return;
+  for (const id of ids) {
+    if (doWhat === 'trash') await api(`/api/admin/content/${type}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    else await applyVisibility(type, id, doWhat);
+  }
+  state.selected.clear();
+  await loadContent();
+  renderShell();
+  toast(`已处理 ${ids.length} 条`);
+}
 
-  const tabs = cases.map((item, i) => `<button type="button" data-case="${esc(item.id)}" class="${item.id === c.id ? 'is-on' : ''}">${String(i + 1).padStart(2, '0')} ${esc(item.title)}</button>`).join('');
+/* ---------------- 预览 ---------------- */
 
-  const sections = (c.sections || []).map((s, i) => `
-    <div class="row-card">
-      ${rowHead(i, s.h || '小节', `work.cases.${index}.sections`)}
-      ${field('小标题', `work.cases.${index}.sections.${i}.h`, s.h)}
-      ${area('正文', `work.cases.${index}.sections.${i}.p`, s.p)}
-    </div>`).join('');
+async function openPreview() {
+  const d = state.drawer;
+  if (!d) return;
+  if (d.dirty) await saveDrawer();
+  const type = TYPE_MAP[d.type];
+  let url = `/?preview=${type.id}:${encodeURIComponent(d.id)}`;
+  if (!type.single) {
+    const data = await api(`/api/admin/content/${type.id}/${encodeURIComponent(d.id)}/preview-token`, { method: 'POST' });
+    url += `&token=${encodeURIComponent(data.token)}`;
+  }
+  const hash = type.preview ? type.preview(d.id) : '';
+  window.open(url + hash, '_blank', 'noopener');
+}
 
-  const links = (c.links || []).map((l, i) => `
-    <div class="row-card">
-      ${rowHead(i, l.text || '链接', `work.cases.${index}.links`)}
-      <div class="grid-2">
-        ${field('文字', `work.cases.${index}.links.${i}.text`, l.text)}
-        ${field('URL', `work.cases.${index}.links.${i}.url`, l.url)}
-      </div>
-    </div>`).join('');
+/* ---------------- 新建 / 行编辑 ---------------- */
 
-  return `
-    <div class="panel-head"><h1>项目案例</h1><p>先选一个案例，再编辑它的字段。修改后点右上角保存。</p></div>
-    <div class="card">
-      <div class="case-tabs">${tabs}</div>
-      <div class="actions" style="margin-bottom:16px">
-        <button class="btn btn--sm" type="button" data-act="add" data-array="work.cases">+ 新增案例</button>
-        <button class="btn btn--sm btn--danger" type="button" data-act="del" data-array="work.cases" data-index="${index}">删除当前案例</button>
-        <span class="tip" style="font-size:11px;color:var(--adm-muted)">删除不可撤销，但可从备份恢复</span>
-      </div>
-      <div class="grid-3">
-        ${field('标题', `work.cases.${index}.title`, c.title)}
-        ${selectField('分类', `work.cases.${index}.category`, c.category, CATS)}
-        ${field('序号', `work.cases.${index}.number`, c.number)}
-      </div>
-      <div class="grid-3">
-        ${field('归属', `work.cases.${index}.org`, c.org)}
-        ${field('时间', `work.cases.${index}.period`, c.period)}
-        ${field('角色', `work.cases.${index}.role`, c.role)}
-      </div>
-      ${area('摘要', `work.cases.${index}.summary`, c.summary)}
-      ${listArea('标签', `work.cases.${index}.tags`, c.tags, 'csv', '逗号分隔，前台最多显示 4 个')}
-      ${listArea('配图', `work.cases.${index}.images`, c.images, 'lines', '一行一个图片地址，如 /assets/xxx.webp')}
-      ${area('结果一句话', `work.cases.${index}.result`, c.result)}
-      <label class="tip" style="display:block;margin:6px 0">案例 ID：<b>${esc(c.id)}</b>（供链接 #/work/${esc(c.id)} 使用）</label>
+function addRow(el) {
+  const d = state.drawer;
+  const path = el.dataset.path.split('.');
+  const kind = el.dataset.kind;
+  let list = getPath(d.draft, path);
+  if (!Array.isArray(list)) { list = []; setPath(d.draft, path, list); }
+  const blank = kind === 'str' ? '' : kind === 'kv' ? { k: '', v: '' }
+    : kind === 'obj2' ? {} : kind === 'section' ? { h: '', p: '' }
+    : kind === 'link' ? { text: '', url: '' } : { src: '', alt: '', caption: '' };
+  list.push(blank);
+  renderDrawer();
+  markDirty();
+  const rows = $$('.ad-rows', $('#drawerBody')).find((r) => r.dataset.list === el.dataset.path);
+  if (rows) rows.scrollIntoView({ block: 'nearest' });
+}
+
+function delRow(el) {
+  const d = state.drawer;
+  const path = el.dataset.path.split('.');
+  const index = Number(path.pop());
+  const list = getPath(d.draft, path);
+  if (!Array.isArray(list)) return;
+  list.splice(index, 1);
+  renderDrawer();
+  markDirty();
+}
+
+function moveRow(el) {
+  const d = state.drawer;
+  const path = el.dataset.path.split('.');
+  const index = Number(path.pop());
+  const dir = Number(el.dataset.dir);
+  const list = getPath(d.draft, path);
+  if (!Array.isArray(list)) return;
+  const to = index + dir;
+  if (to < 0 || to >= list.length) return;
+  list.splice(to, 0, list.splice(index, 1)[0]);
+  renderDrawer();
+  markDirty();
+}
+
+/* ---------------- 上传 ---------------- */
+
+function pickFile(path) {
+  state.uploadPath = path;
+  const input = $('#filePick');
+  input.value = '';
+  input.click();
+}
+
+async function onFilePicked(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !state.uploadPath || !state.drawer) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/admin/upload', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || '上传失败');
+    setPath(state.drawer.draft, state.uploadPath.split('.'), data.url);
+    renderDrawer();
+    markDirty();
+    toast('图片已上传');
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    state.uploadPath = null;
+  }
+}
+
+/* ---------------- 首页精选 ---------------- */
+
+function openSelectedModal() {
+  const cases = typeRows(TYPE_MAP.case).filter((c) => statusOf(c) === 'public');
+  const selected = (state.content.home && state.content.home.selectedIds) || [];
+  $('#modalHost').innerHTML = `
+  <div class="ad-modal-backdrop" data-act="close-selected"></div>
+  <div class="ad-modal">
+    <header><h2>首页精选</h2><button class="ad-icon-btn" data-act="close-selected">×</button></header>
+    <p class="ad-muted">勾选要出现在首页「四件做过的东西」里的项目，最多 6 个。</p>
+    <div class="ad-pick-list">
+      ${cases.map((c) => `<label class="ad-pick"><input type="checkbox" data-act="toggle-selected" data-id="${esc(c.id)}" ${selected.includes(c.id) ? 'checked' : ''}><span>${esc(c.title)}</span><i>${esc(c.number || '')}</i></label>`).join('')}
     </div>
-    <div class="card">
-      <h3>正文小节</h3>
-      ${sections || '<div class="empty">还没有小节</div>'}
-      <button class="btn" type="button" data-act="add" data-array="work.cases.${index}.sections">+ 新增小节</button>
-    </div>
-    <div class="card">
-      <h3>外部链接</h3>
-      ${links || '<div class="empty">还没有链接</div>'}
-      <button class="btn" type="button" data-act="add" data-array="work.cases.${index}.links">+ 新增链接</button>
-    </div>`;
+    <footer><button class="ad-btn" data-act="close-selected">取消</button><button class="ad-btn ad-btn--primary" data-act="save-selected">保存</button></footer>
+  </div>`;
 }
 
-/* ---------------- 工具 ---------------- */
+function toggleSelectedItem(el) { /* checkbox 状态由读取时值决定 */ }
 
-function viewTools() {
-  const t = state.content.tools;
-  const items = t.items || [];
-  const rows = items.map((item, i) => `
-    <div class="row-card">
-      ${rowHead(i, `${item.name || '未命名工具'} · ${item.enabled === false ? '已关闭' : '启用中'}`, 'tools.items')}
-      <div class="grid-4">
-        ${field('ID', `tools.items.${i}.id`, item.id)}
-        ${field('名称', `tools.items.${i}.name`, item.name)}
-        ${field('图标', `tools.items.${i}.icon`, item.icon)}
-        ${selectField('分类', `tools.items.${i}.category`, item.category, [['convert', '转换'], ['query', '查询']])}
-      </div>
-      ${field('简介', `tools.items.${i}.desc`, item.desc)}
-      <div class="grid-3">
-        ${field('模块文件', `tools.items.${i}.module`, item.module, { tip: '必须与 public/tools/ 下的文件名一致，如 markdown.js' })}
-        ${field('排序', `tools.items.${i}.order`, item.order, { type: 'number' })}
-        ${check('启用', `tools.items.${i}.enabled`, item.enabled !== false)}
-      </div>
-    </div>`).join('');
-
-  return `
-    <div class="panel-head"><h1>工具管理</h1><p>开关、排序、新增入口。新增工具时先在 public/tools/ 放一个导出 render() 的模块文件。</p></div>
-    <div class="card">
-      <h3>工具列表</h3>
-      <p class="desc">关闭后前台不显示；模块文件不存在时会提示加载失败。</p>
-      ${rows || '<div class="empty">还没有工具</div>'}
-      <button class="btn" type="button" data-act="add" data-array="tools.items">+ 新增工具</button>
-    </div>
-    <div class="card">
-      <h3>扩展约定</h3>
-      <p class="desc">模块需导出：<code>export function render(root, ctx)</code>。root 是容器节点，ctx.toast 可弹提示。文件放在 public/tools/&lt;module&gt;。</p>
-    </div>`;
+function mdInsert(snippet) {
+  if (!state.drawer) return;
+  const ta = $('.ad-drawer-body textarea:focus') || $('#drawerBody textarea');
+  if (!ta || !ta.dataset.path) { toast('先在正文里点一下再插入', 'err'); return; }
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? ta.value.length;
+  const next = ta.value.slice(0, start) + snippet + ta.value.slice(end);
+  ta.value = next;
+  setPath(state.drawer.draft, ta.dataset.path.split('.'), ta.value);
+  markDirty();
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = start + snippet.length;
 }
 
-/* ---------------- 公告 ---------------- */
-
-function viewNotices() {
-  const notices = state.content.notices || [];
-  const rows = notices.map((n, i) => `
-    <div class="row-card">
-      ${rowHead(i, n.title || '公告', 'notices')}
-      <div class="grid-3">
-        ${field('标题', `notices.${i}.title`, n.title)}
-        ${field('日期', `notices.${i}.date`, n.date, { placeholder: '2026-11-22' })}
-        ${check('启用', `notices.${i}.enabled`, n.enabled !== false)}
-      </div>
-      ${area('正文', `notices.${i}.body`, n.body, { tip: '支持 **加粗** 与 `行内代码`' })}
-    </div>`).join('');
-
-  return `
-    <div class="panel-head"><h1>公告</h1><p>首页只显示第一条启用的公告；没有启用公告时整块隐藏。</p></div>
-    <div class="card">
-      ${rows || '<div class="empty">还没有公告</div>'}
-      <button class="btn" type="button" data-act="add" data-array="notices">+ 新增公告</button>
-    </div>`;
+async function saveSelected() {
+  const ids = $$('.ad-pick input:checked').map((x) => x.dataset.id);
+  const data = await api('/api/admin/selected', { method: 'PUT', body: { ids } });
+  state.content.home.selectedIds = data.ids;
+  $('#modalHost').innerHTML = '';
+  renderShell();
+  toast('首页精选已更新');
 }
 
-/* ---------------- 媒体 ---------------- */
+/* ---------------- 发布 ---------------- */
 
-async function loadMedia() {
-  const res = await api('/api/admin/media');
-  state.media = res.items || [];
+async function publish() {
+  try {
+    await api('/api/publish', { method: 'POST' });
+  } catch (err) {
+    toast(err.message, 'err');
+    return;
+  }
+  showPublishPanel();
+  pollPublish();
 }
 
-function viewMedia() {
-  const cards = state.media.map((m) => `
-    <div class="media-card">
-      <img src="${esc(m.url)}" alt="${esc(m.name)}" loading="lazy">
-      <div class="media-meta">
-        <div>${esc(m.name)}</div>
-        <div>${(m.size / 1024).toFixed(1)} KB · ${esc(m.dir)}</div>
-        <div class="m-act">
-          <button type="button" data-copy="${esc(m.url)}">复制地址</button>
-          <button type="button" data-avatar-url="${esc(m.url)}">设为头像</button>
-          ${m.dir === '/uploads/' ? `<button type="button" class="danger" data-del-media="${esc(m.name)}">删除</button>` : ''}
-        </div>
-      </div>
-    </div>`).join('');
+function showPublishPanel() {
+  if ($('#publishPanel')) return;
+  const host = $('#modalHost');
+  host.innerHTML = `<div class="ad-modal-backdrop"></div>
+  <div class="ad-modal ad-modal--publish" id="publishPanel">
+    <header><h2>发布上线</h2><button class="ad-icon-btn" data-act="close-publish">×</button></header>
+    <p class="ad-muted">正在构建静态站并推送 GitHub Pages，通常 1-3 分钟。</p>
+    <div class="ad-pub-step" id="pubStep">准备中…</div>
+    <pre class="ad-pub-log" id="pubLog">${esc(state.publish.log.slice(-20).join('\n'))}</pre>
+  </div>`;
+}
 
-  return `
-    <div class="panel-head"><h1>媒体库</h1><p>上传图片后把地址填到对应字段；assets 内为原站资源，只读。</p></div>
-    <div class="card">
-      <div class="actions" style="margin-bottom:14px">
-        <button class="btn btn--primary" type="button" id="mediaUploadBtn">上传图片</button>
-        <span class="tip" style="font-size:11px;color:var(--adm-muted)">支持 png / jpg / webp / gif / avif，单张不超过 8MB</span>
-      </div>
-      <div class="media-grid">${cards || '<div class="empty">媒体库为空</div>'}</div>
-    </div>`;
+async function pollPublish() {
+  clearTimeout(state.publish.timer);
+  try {
+    const s = await api('/api/publish/status');
+    state.publish = Object.assign(state.publish, s);
+    const stepEl = $('#pubStep');
+    const logEl = $('#pubLog');
+    if (stepEl) stepEl.textContent = s.running ? `${s.step === 'build' ? '正在构建' : '正在推送'}…` : (s.ok ? '发布完成' : s.step === 'error' ? '发布失败' : '已结束');
+    if (logEl) { logEl.textContent = (s.log || []).slice(-20).join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+    if (s.running) state.publish.timer = setTimeout(pollPublish, 2000);
+    else toast(s.ok ? '发布成功，线上已更新' : '发布失败，请看日志', s.ok ? 'ok' : 'err');
+  } catch (err) {
+    state.publish.timer = setTimeout(pollPublish, 3000);
+  }
 }
 
 /* ---------------- 备份 ---------------- */
 
-async function loadBackups() {
-  const res = await api('/api/backups');
-  state.backups = res.items || [];
+async function restoreBackup(name) {
+  if (!confirm(`用备份 ${name} 覆盖当前内容？会先备份当前状态。`)) return;
+  await api(`/api/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' });
+  await loadContent();
+  renderShell();
+  toast('已恢复备份');
 }
 
-function viewBackups() {
-  const rows = state.backups.map((b) => `
-    <div class="backup-row">
-      <span class="mono">${esc(b.name)}</span>
-      <span class="mono">${(b.size / 1024).toFixed(1)} KB</span>
-      <span class="grow mono">${new Date(b.time).toLocaleString('zh-CN')}</span>
-      <button class="btn btn--sm" type="button" data-restore="${esc(b.name)}">恢复到此版本</button>
-    </div>`).join('');
-
-  return `
-    <div class="panel-head"><h1>备份恢复</h1><p>每次保存都会生成一份备份，最多保留 30 份。</p></div>
-    <div class="card">
-      ${rows || '<div class="empty">暂无备份，第一次保存后会出现</div>'}
-    </div>
-    <div class="card">
-      <h3>手动备份</h3>
-      <p class="desc">也可以直接复制 data/site.json 到其他位置保存。</p>
-      <button class="btn" type="button" id="manualBackup">立即生成一份备份</button>
-    </div>`;
+function copyText(text) {
+  navigator.clipboard ? navigator.clipboard.writeText(text).then(() => toast('地址已复制')) : toast('复制失败', 'err');
 }
 
-/* ---------------- 账号 ---------------- */
+/* ---------------- 启动 ---------------- */
 
-function viewAccount() {
-  return `
-    <div class="panel-head"><h1>账号设置</h1><p>当前账号：<b>${esc(state.user ? state.user.username : '')}</b>。登录后 4 小时自动失效。</p></div>
-    <div class="card">
-      <h3>修改密码</h3>
-      <form id="pwdForm" style="max-width:420px">
-        ${field('当前密码', 'pwd.current', '', { type: 'password' })}
-        ${field('新密码', 'pwd.next', '', { type: 'password', tip: '至少 8 位' })}
-        ${field('确认新密码', 'pwd.confirm', '', { type: 'password' })}
-        <button class="btn btn--primary" type="submit">保存新密码</button>
-      </form>
-    </div>
-    <div class="card">
-      <h3>会话</h3>
-      <p class="desc">退出后需要重新输入账号密码。</p>
-      <button class="btn btn--danger" type="button" id="logoutBtn2">退出登录</button>
-    </div>`;
-}
-
-/* ---------------- 路径读写 ---------------- */
-
-function getPath(obj, path) {
-  return path.split('.').reduce((cur, key) => (cur == null ? undefined : cur[key]), obj);
-}
-
-function setPath(obj, path, value) {
-  const keys = path.split('.');
-  let cur = obj;
-  keys.forEach((key, i) => {
-    if (i === keys.length - 1) {
-      cur[key] = value;
-      return;
-    }
-    if (cur[key] == null || typeof cur[key] !== 'object') cur[key] = {};
-    cur = cur[key];
-  });
-}
-
-function defaultValue(arrayPath) {
-  const name = arrayPath.split('.').pop();
-  const now = Date.now().toString(36);
-  if (name === 'nav') return { id: `nav-${now}`, label: '新菜单', type: 'route', target: 'home', visible: true, order: 99 };
-  if (name === 'branches') return { id: `branch-${now}`, label: '新分支', type: 'custom', visible: true, order: 99, description: '' };
-  if (name === 'stats') return { value: '0', label: '新指标' };
-  if (name === 'facts') return { k: '字段', v: '内容' };
-  if (name === 'abilities') return { t: '新能力', d: '' };
-  if (name === 'skills') return { n: '新技能' };
-  if (name === 'future') return { t: '新阶段', d: '' };
-  if (name === 'contacts') return { label: '联系方式', value: '', url: '' };
-  if (name === 'notices') return { id: `notice-${now}`, title: '新公告', body: '', date: '', enabled: true };
-  if (name === 'tools') return { id: `tool-${now}`, name: '新工具', desc: '', module: '', icon: '↗', category: 'convert', enabled: true, order: 99 };
-  if (name === 'cases') return { id: `case-${now}`, title: '新案例', category: 'project', number: '', org: '', period: '', role: '', summary: '', tags: [], images: [], links: [], sections: [], result: '' };
-  if (name === 'sections') return { h: '新小节', p: '' };
-  if (name === 'links') return { text: '新链接', url: 'https://' };
-  if (name === 'lines') return '';
-  return '';
-}
-
-/* ---------------- 事件绑定 ---------------- */
-
-document.addEventListener('input', (e) => {
-  const el = e.target.closest('[data-path]');
-  if (!el || !state.content) return;
-  if (el.closest('#loginForm') || el.closest('#pwdForm')) return;
-  let value;
-  if (el.dataset.kind === 'check') value = el.checked;
-  else if (el.dataset.kind === 'number') value = Number(el.value) || 0;
-  else if (el.dataset.kind === 'csv') value = el.value.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
-  else if (el.dataset.kind === 'lines') value = el.value.split('\n').map((s) => s.trim()).filter(Boolean);
-  else value = el.value;
-  setPath(state.content, el.dataset.path, value);
-  markDirty();
+boot().catch((err) => {
+  console.error(err);
+  renderLogin(err.message);
 });
-
-document.addEventListener('click', async (e) => {
-  const goto = e.target.closest('[data-goto]');
-  if (goto) return switchTab(goto.dataset.goto);
-
-  const caseTab = e.target.closest('[data-case]');
-  if (caseTab) {
-    state.caseId = caseTab.dataset.case;
-    return renderTab();
-  }
-
-  const upload = e.target.closest('[data-upload]');
-  if (upload) {
-    pickAndUpload(upload.dataset.upload);
-    return;
-  }
-
-  const pick = e.target.closest('[data-pick-media]');
-  if (pick) {
-    state.tab = 'media';
-    switchTab('media');
-    toast('在媒体库复制图片地址，再填回字段');
-    return;
-  }
-
-  const copy = e.target.closest('[data-copy]');
-  if (copy) {
-    try { await navigator.clipboard.writeText(copy.dataset.copy); toast('地址已复制'); }
-    catch (err) { toast('复制失败，请手动选择', true); }
-    return;
-  }
-
-  const avatar = e.target.closest('[data-avatar-url]');
-  if (avatar && state.content) {
-    state.content.site.avatar = avatar.dataset.avatarUrl;
-    state.dirty = true;
-    syncDirty();
-    toast('已设为头像，记得点保存');
-    return;
-  }
-
-  const delMedia = e.target.closest('[data-del-media]');
-  if (delMedia) {
-    if (!confirm(`删除上传文件 ${delMedia.dataset.delMedia}？`)) return;
-    try {
-      await api(`/api/admin/media/${encodeURIComponent(delMedia.dataset.delMedia)}`, { method: 'DELETE' });
-      await loadMedia();
-      renderTab();
-      toast('已删除');
-    } catch (err) { toast(err.message, true); }
-    return;
-  }
-
-  if (e.target.closest('#mediaUploadBtn')) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (!file) return;
-      const url = await uploadFile(file);
-      if (url) {
-        await loadMedia();
-        renderTab();
-        toast('上传完成：' + url);
-      }
-    };
-    input.click();
-    return;
-  }
-
-  const restore = e.target.closest('[data-restore]');
-  if (restore) {
-    if (!confirm(`恢复备份 ${restore.dataset.restore}？当前内容会被覆盖。`)) return;
-    try {
-      await api(`/api/backups/${encodeURIComponent(restore.dataset.restore)}/restore`, { method: 'POST' });
-      state.content = await api('/api/content');
-      state.dirty = false;
-      syncDirty();
-      switchTab('overview');
-      toast('已恢复备份');
-    } catch (err) { toast(err.message, true); }
-    return;
-  }
-
-  if (e.target.closest('#manualBackup')) {
-    try {
-      await saveContent(true);
-      await loadBackups();
-      renderTab();
-    } catch (err) { toast(err.message, true); }
-    return;
-  }
-
-  if (e.target.closest('#logoutBtn2')) return logout();
-
-  const act = e.target.closest('[data-act]');
-  if (!act) return;
-  const arrayPath = act.dataset.array;
-  const index = Number(act.dataset.index);
-  const arr = getPath(state.content, arrayPath);
-  if (!Array.isArray(arr)) return;
-
-  if (act.dataset.act === 'add') {
-    const item = defaultValue(arrayPath);
-    if (item && typeof item === 'object' && 'order' in item) {
-      item.order = arr.reduce((max, it) => Math.max(max, Number(it.order) || 0), 0) + 1;
-    }
-    arr.push(item);
-  } else if (act.dataset.act === 'del') {
-    if (!confirm('确定删除这一条？')) return;
-    if (arrayPath === 'work.cases') {
-      const removed = arr[index];
-      arr.splice(index, 1);
-      if (removed && removed.id === state.caseId) state.caseId = (arr[0] || {}).id || null;
-    } else {
-      arr.splice(index, 1);
-    }
-  } else if (act.dataset.act === 'up' && index > 0) {
-    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-  } else if (act.dataset.act === 'down' && index < arr.length - 1) {
-    [arr[index + 1], arr[index]] = [arr[index], arr[index + 1]];
-  }
-
-  state.dirty = true;
-  syncDirty();
-  renderTab();
-});
-
-document.addEventListener('submit', async (e) => {
-  if (e.target.id !== 'pwdForm') return;
-  e.preventDefault();
-  const current = $('#f-pwd\\.current').value;
-  const next = $('#f-pwd\\.next').value;
-  const confirmValue = $('#f-pwd\\.confirm').value;
-  if (next.length < 8) return toast('新密码至少 8 位', true);
-  if (next !== confirmValue) return toast('两次输入的新密码不一致', true);
-  try {
-    await api('/api/auth/password', { method: 'POST', body: { currentPassword: current, newPassword: next } });
-    toast('密码已更新，下次用新密码登录');
-    e.target.reset();
-  } catch (err) { toast(err.message, true); }
-});
-
-async function uploadFile(file) {
-  if (file.size > 8 * 1024 * 1024) {
-    toast('图片超过 8MB，请先压缩', true);
-    return null;
-  }
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res = await api('/api/admin/upload', { method: 'POST', body: fd });
-    return res.url;
-  } catch (err) {
-    toast(err.message, true);
-    return null;
-  }
-}
-
-function pickAndUpload(path) {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-    const url = await uploadFile(file);
-    if (!url) return;
-    setPath(state.content, path, url);
-    markDirty();
-    renderTab();
-    toast('图片已上传并填入');
-  };
-  input.click();
-}
-
-/* ---------------- 保存 / 退出 ---------------- */
-
-async function saveContent(silent = false) {
-  if (!state.content || state.saving) return;
-  state.saving = true;
-  syncDirty();
-  try {
-    const res = await api('/api/content', { method: 'PUT', body: state.content });
-    state.dirty = false;
-    state.saving = false;
-    syncDirty();
-    if (!silent) toast(`已保存（${(res.bytes / 1024).toFixed(1)} KB），前台已刷新`);
-  } catch (err) {
-    state.saving = false;
-    syncDirty();
-    toast(err.message, true);
-    throw err;
-  }
-}
-
-async function logout() {
-  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (err) { /* ignore */ }
-  clearInterval(state.sessionTimer);
-  state.content = null;
-  state.dirty = false;
-  state.expiresAt = null;
-  renderLogin();
-}
-
-window.addEventListener('beforeunload', (e) => {
-  if (state.dirty) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    saveContent();
-  }
-});
-
-boot();

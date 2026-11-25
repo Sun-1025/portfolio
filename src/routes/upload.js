@@ -17,7 +17,12 @@ const ALLOWED = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif']);
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, UPLOAD_DIR);
+    if (String(req.query.scope || '') === 'private') {
+      const dir = path.join(UPLOAD_DIR, 'private');
+      fs.mkdirSync(dir, { recursive: true });
+      return cb(null, dir);
+    }
+    return cb(null, UPLOAD_DIR);
   },
   filename(req, file, cb) {
     let ext = path.extname(file.originalname || '').toLowerCase();
@@ -43,7 +48,8 @@ router.post('/upload', requireAuth, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ ok: false, error: err.message });
     if (!req.file) return res.status(400).json({ ok: false, error: '没有收到文件' });
-    res.json({ ok: true, url: `/uploads/${req.file.filename}`, name: req.file.filename });
+    const priv = String(req.query.scope || '') === 'private';
+    res.json({ ok: true, url: (priv ? '/uploads/private/' : '/uploads/') + req.file.filename, name: req.file.filename, private: priv });
   });
 });
 

@@ -149,3 +149,16 @@ html[data-cursor="on"], html[data-cursor="on"] * { cursor: none; }
   .v6-progress-tick.is-now { animation: none; transform: translateY(-50%); }
   .v5-timeline-body h3::before, .v5-timeline-body h3::after { transition: none; }
 }
+
+/* ---------- 私密内容占位（后台可见性开关的访客视角） ---------- */
+.v5-locked { cursor: default; }
+.v5-lock-fallback { width: 100%; height: 100%; display: grid; place-items: center;
+  background: rgba(128, 128, 128, 0.08); color: var(--muted);
+  font-size: 22px; aspect-ratio: 4 / 3; border-radius: inherit; }
+.v5-project-card.v5-locked .v5-project-media { background: rgba(128, 128, 128, 0.06); }
+.v5-project-card.v5-locked:hover, .v5-interest-card.v5-locked:hover, .v5-tool-card.v5-locked:hover { transform: none; box-shadow: none; }
+.v5-locked .v5-project-summary, .v5-locked p { color: var(--muted); }
+.v5-locked-note { color: var(--muted); font-size: 16px; line-height: 1.7; }
+.v5-tool-card.v5-locked .v5-tool-icon { color: var(--muted); }
+.v5-campus-card.v5-locked { display: grid; gap: 10px; }
+.v5-campus-card.v5-locked .v5-lock-fallback { aspect-ratio: 4 / 3; border-radius: 12px; }

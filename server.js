@@ -14,6 +14,7 @@ const contentRoutes = require('./src/routes/content');
 const guestbookRoutes = require('./src/routes/guestbook');
 const uploadRoutes = require('./src/routes/upload');
 const eventRoutes = require('./src/routes/events');
+const publishRoutes = require('./src/routes/publish');
 
 const ROOT = path.resolve(__dirname);
 const PUBLIC = path.join(ROOT, 'public');
@@ -41,6 +42,17 @@ app.use((req, res, next) => {
 
 // 静态资源缓存策略
 app.use('/assets', express.static(path.join(PUBLIC, 'assets'), { maxAge: '30d', immutable: true }));
+// 私密图片：必须带后台会话或预览令牌，否则 404
+app.use('/uploads/private', (req, res, next) => {
+  try {
+    const { readToken, verifySession, verifyPreview } = require('./src/auth');
+    const token = readToken(req);
+    if (token && verifySession(token)) return next();
+    const pToken = String(req.query.token || '');
+    if (pToken && verifyPreview(pToken)) return next();
+  } catch (err) { /* fallthrough */ }
+  return res.status(404).end();
+});
 app.use('/uploads', express.static(path.join(PUBLIC, 'uploads'), { maxAge: '7d' }));
 app.use('/tools', express.static(path.join(PUBLIC, 'tools'), { maxAge: '1h' }));
 // 经典版是独立静态页；后台关闭 classic 分支时，直达地址也要被拦住。
@@ -71,6 +83,7 @@ app.use('/api/admin', uploadRoutes);
 app.use('/api', guestbookRoutes);
 app.use('/api', contentRoutes);
 app.use('/api', eventRoutes);
+app.use('/api', publishRoutes);
 
 // 动态站点数据：经典版页面与静态前台共用
 app.get('/data/site.json', (req, res) => {

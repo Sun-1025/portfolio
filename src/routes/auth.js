@@ -41,11 +41,13 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/me', auth.requireAuth, (req, res) => {
+router.get('/me', (req, res) => {
   const token = auth.readToken(req);
+  const payload = token ? auth.verifySession(token) : null;
+  if (!payload) return res.json({ ok: true, user: null });
   res.json({
     ok: true,
-    user: req.admin,
+    user: { username: payload.username },
     expiresInHours: auth.HOURS,
     expiresAt: auth.sessionExpiryMs(token),
   });

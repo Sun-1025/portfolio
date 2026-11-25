@@ -108,6 +108,22 @@ function clearAttempts(ip) {
   attempts.delete(ip);
 }
 
+function signPreview(payload) {
+  return jwt.sign(Object.assign({ scope: 'preview' }, payload), SECRET, {
+    expiresIn: '10m',
+    issuer: 'portfolio-v2',
+  });
+}
+
+function verifyPreview(token) {
+  try {
+    const payload = jwt.verify(token, SECRET, { issuer: 'portfolio-v2' });
+    return payload && payload.scope === 'preview' ? payload : null;
+  } catch (err) {
+    return null;
+  }
+}
+
 module.exports = {
   COOKIE_NAME,
   HOURS,
@@ -121,4 +137,6 @@ module.exports = {
   tooManyAttempts,
   recordFailure,
   clearAttempts,
+  signPreview,
+  verifyPreview,
 };
