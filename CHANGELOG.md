@@ -8,7 +8,7 @@
 - A3：关于页右侧信息栏与主栏垂直居中；回顶按钮 `Back to Top` 文字水平/垂直居中；工具台左右两栏等高、等宽；站内 Agent 增加气泡提示，文案末尾带全角波浪号，打开面板后自动隐藏。
 - 文档：README 重建；新增 `docs/00-overview.md` 到 `docs/09-credits.md`；清理 GitHub 上 `docs/??????.md` 等乱码文件名，统一使用 ASCII 文件名与 UTF-8 正文。
 - 隐私：移除文档中的管理员明文密码；本机完成管理员密码轮换，新密码写入 `private/admin-password.txt`（`.gitignore` 已忽略），仓库不提供默认密码。
-- 构建：`npm run build` 通过，`dist` 72 文件 / 10,197,545B；`dist/assets/js/threads.js` 14,263B；`dist/assets/js/dotfield.js` 不存在。
+- 构建：`npm run build` 通过，`dist` 72 文件 / 10,199,084B；`dist/assets/js/threads.js` 14,263B；`dist/assets/js/dotfield.js` 不存在。
 
 ## 4.0.1 — 2026-11-23（iOS 27 日间玻璃，未发布）
 

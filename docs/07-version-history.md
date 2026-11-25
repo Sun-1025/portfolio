@@ -28,7 +28,7 @@
 
 ## 当前构建
 
-- `dist`：72 个文件 / 10,197,545 字节
+- `dist`：72 个文件 / 10,199,084 字节
 - 首页引用 `/assets/js/threads.js`
 - `dotfield.js` 已从源码和构建产物移除
 - 线上：`https://sunzhihaoai.top`
