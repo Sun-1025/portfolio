@@ -167,17 +167,20 @@ html[data-cursor="on"], html[data-cursor="on"] * { cursor: none; }
    v6 UI/UX 三合一：动态点阵背景 / 回到顶部 / Tooltip + Focus + Glare
    ============================================================ */
 
-/* ---------- P1 · DotField 背景 ---------- */
-.v6-dotfield {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 1;
-  transform-origin: 50% 50%;
-  --dotfield-glow: #6366f1;
+/* ---------- P1 · Threads 背景 ---------- */
+.v6-threads { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.v6-threads-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+html[data-bg="threads"] .site-grid { display: none !important; }
+/* Threads 下保持玻璃卡通透：hover 不从 tint 升到 strong；22px 背模糊会把 1px 线束糊平，
+   hover 时降到 2px，确保线束能透过卡面看见（token 未改，仅 threads 模式） */
+html[data-bg="threads"] .v5-project-card:hover,
+html[data-bg="threads"] .v5-practice:hover,
+html[data-bg="threads"] .v5-interest-card:hover,
+html[data-bg="threads"] .v5-tool-card:hover {
+  background: var(--glass-tint);
+  -webkit-backdrop-filter: blur(2px) saturate(1.35);
+  backdrop-filter: blur(2px) saturate(1.35);
 }
-html[data-dotfield="on"] .site-grid { display: none !important; }
 
 /* ---------- P2 · 回到顶部 ---------- */
 /* From Uiverse.io by vinodjangid07 - https://uiverse.io/vinodjangid07/afraid-falcon-17

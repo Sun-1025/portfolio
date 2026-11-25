@@ -68,6 +68,7 @@ $paths = @(
     'docs/v5/01-change-list.md', 'docs/v5/02-deploy.md', 'docs/v5/03-image-map.md',
     'docs/v5/04-copy.md', 'docs/v5/05-self-check.md', 'docs/v5/06-not-public.md',
     'docs/后台使用手册.md', 'docs/cms-改造说明.md', 'docs/v6-uiux-验收报告.md',
+    'docs/a2-threads-验收报告.md',
     'scripts/export-static.js', 'scripts/init-admin.js', 'scripts/migrate-content.js',
     'sync/deploy-v5-pages.ps1', 'sync/deploy-v6-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
 )
@@ -129,7 +130,7 @@ foreach ($rel in $paths) {
 }
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: v6 UI/UX 三合一（DotField / 回到顶部 / Tooltip-Focus-Glare）'
+    message = 'feat: A2 Threads 背景替换（全屏跟随 / 浅色深线）'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

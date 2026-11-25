@@ -123,7 +123,7 @@ $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{
     tree = $entries
 }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: v6 UI/UX 三合一（DotField / 回到顶部 / Tooltip-Focus-Glare）'
+    message = 'feat: A2 Threads 背景替换（全屏跟随 / 浅色深线）'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }
