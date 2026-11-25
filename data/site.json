@@ -759,7 +759,7 @@
   "tools": {
     "title": "在线工具箱",
     "intro": "几个自己写的小工具，文件在浏览器本地处理，不上传服务器。每个工具下面写清楚解决什么问题、用之前要知道什么。",
-    "routes": 5,
+    "routes": 7,
     "items": [
       {
         "id": "converter",
@@ -841,6 +841,38 @@
         "status": "published",
         "visible": true,
         "updatedAt": "2026-11-24T13:56:57.235Z"
+      },
+      {
+        "id": "pdf-to-word",
+        "name": "PDF 转 Word",
+        "desc": "提取 PDF 文字层，按段落顺序生成可编辑的 .docx。",
+        "category": "convert",
+        "module": "pdf-to-word.js",
+        "icon": "P",
+        "enabled": true,
+        "order": 5,
+        "problem": "把有文字层的 PDF 变成可编辑 Word；只保留文字和段落顺序。",
+        "prereq": "扫描件没有文字层，当前不做 OCR；表格、双栏、图表、页眉页脚会丢。",
+        "title": "PDF 转 Word",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-25T00:00:00.000Z"
+      },
+      {
+        "id": "word-to-pdf",
+        "name": "Word 转 PDF",
+        "desc": "用系统打印面板把 .docx 另存为 PDF，文字保持可选。",
+        "category": "convert",
+        "module": "word-to-pdf.js",
+        "icon": "W",
+        "enabled": true,
+        "order": 6,
+        "problem": "在浏览器里打开 DOCX，调用系统打印面板另存为 PDF。",
+        "prereq": "需要有系统打印面板；批注、修订、复杂域会丢，不生成位图 PDF。",
+        "title": "Word 转 PDF",
+        "status": "published",
+        "visible": true,
+        "updatedAt": "2026-11-25T00:00:00.000Z"
       }
     ]
   },

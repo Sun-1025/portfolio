@@ -1,5 +1,16 @@
 # 更新记录
 
+## 2026-11-25 — T1 M1：PDF ↔ Word 工具增量
+
+- 新增 `public/tools/pdf-to-word.js`：pdf.js 逐页取文字层、按 y/x 重建行与段落，JSZip 手写最小 OOXML；支持扫描件判定、局部无文字页斜体提示、XML 转义与 `<w:br w:type="page"/>` 分页。
+- 新增 `public/tools/word-to-pdf.js`：mammoth 转 HTML，隐藏 iframe（`position:fixed; left:-9999px`）写入完整文档并调系统打印面板；按钮文案为「打印 / 保存为 PDF」，明确提示不是直接下载。
+- 新增 `public/tools/lib/download.js`、`file-drop.js`、`pdf-text.js`、`docx-write.js`、`pdf-to-docx.js`、`word-print.js`：下载/文件名清洗、共用拖拽区、PDF 文字提取、OOXML、打印流程。
+- 转换台新增 `PDF → DOCX`、`DOCX → PDF`；`DOCX → PDF` 复用打印流程，成功后标记“已打开打印面板”，不伪造下载文件。
+- 新增 `public/tools/vendor/cmaps/` 五个中文 CMap 文件，解决 pdf.js 对 `UniGB-UTF16-H` 中文 PDF 的提取；worker 改为 `/tools/vendor/pdf.worker.min.mjs` 绝对路径。
+- `data/site.json` 新增 `pdf-to-word`、`word-to-pdf` 两条，`tools.routes` 由 5 改为 7；现有 5 个工具、导航、视觉 token、后台和路由结构未改。
+- M1 实测：10 页纯文字 PDF → 59 段落 + 9 个分页符；双栏文字齐全（版式丢失提示保留）；扫描件/局部扫描件按规则处理；含图片/表格 DOCX 打印预览 A4；100MB PDF 被 80MB 上限拦截；390×844 无横向溢出。
+- 构建：`npm run build` 通过，`dist` 85 文件 / 10,341,183B（约 9.86MB）；截图在 `_shots/t1/`。
+
 ## 2026-11-25 — A2 Threads / A3 布局收口 / 仓库文档重建
 
 - A2：首页背景从 DotField 全面替换为原生 WebGL2 Threads；删除 `public/assets/js/dotfield.js`，新增 `public/assets/js/threads.js`，`public/index.html` 改引新脚本，`app-v6.css` 的 `.v6-dotfield` 改为 `.v6-threads`。

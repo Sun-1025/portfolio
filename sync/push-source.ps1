@@ -153,7 +153,7 @@ foreach ($rel in $paths) {
 }
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'docs: rebuild repository docs, polish A3 layout, add agent bubble'
+    message = 'feat: T1 M1 PDF ↔ Word tools; docs and build notes'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

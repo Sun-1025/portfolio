@@ -30,8 +30,8 @@ export const MATRIX = [
   { family: 'data', from: 'TXT', targets: ['HTML'], note: '纯文本转网页' },
   { family: 'data', from: 'HTML', targets: ['TXT', 'MD'], note: '正文提取 / 转 Markdown' },
   { family: 'audio', from: 'MP3 / M4A / OGG / AAC / FLAC / WAV', targets: ['WAV', 'MP3'], note: '浏览器解码后转 PCM 或 MP3' },
-  { family: 'pdf', from: 'PDF', targets: ['TXT', 'PNG', 'JPG'], note: '逐页提取文字或渲染' },
-  { family: 'office', from: 'DOCX', targets: ['HTML', 'TXT', 'MD'], note: '保留标题、段落与表格' },
+  { family: 'pdf', from: 'PDF', targets: ['TXT', 'PNG', 'JPG', 'DOCX'], note: '文字层转 Word；扫描件不 OCR' },
+  { family: 'office', from: 'DOCX', targets: ['HTML', 'TXT', 'MD', 'PDF'], note: 'PDF 通过系统打印面板生成' },
   { family: 'office', from: 'XLSX / XLS', targets: ['CSV', 'JSON', 'HTML', 'TSV'], note: '读取首个工作表' },
   { family: 'office', from: 'ODS', targets: ['CSV', 'JSON', 'HTML', 'TSV'], note: '读取首个工作表' },
   { family: 'office', from: 'PPTX', targets: ['TXT', 'HTML'], note: '提取每页文字' },
@@ -75,8 +75,8 @@ export function targetsFor(ext) {
   if (ext === 'txt') return ['html'];
   if (ext === 'html') return ['txt', 'md'];
   if (AUDIO_EXT.includes(ext)) return AUDIO_TARGETS.filter((x) => x !== ext);
-  if (ext === 'pdf') return ['txt', 'png', 'jpg'];
-  if (ext === 'docx') return ['html', 'txt', 'md'];
+  if (ext === 'pdf') return ['txt', 'png', 'jpg', 'docx'];
+  if (ext === 'docx') return ['html', 'txt', 'md', 'pdf'];
   if (ext === 'xlsx' || ext === 'xls' || ext === 'ods') return ['csv', 'json', 'html', 'tsv'];
   if (ext === 'pptx') return ['txt', 'html'];
   if (ext === 'epub' || ext === 'fb2') return ['html', 'txt', 'md'];

@@ -29,9 +29,9 @@ function loadScript(globalName, path) {
 }
 
 const getPdfLib = () => loadScript('PDFLib', './vendor/pdf-lib.min.js');
-const getMammoth = () => loadScript('mammoth', './vendor/mammoth.browser.min.js');
-const getXLSX = () => loadScript('XLSX', './vendor/xlsx.full.min.js');
-const getJSZip = () => loadScript('JSZip', './vendor/jszip.min.js');
+export const getMammoth = () => loadScript('mammoth', './vendor/mammoth.browser.min.js');
+export const getXLSX = () => loadScript('XLSX', './vendor/xlsx.full.min.js');
+export const getJSZip = () => loadScript('JSZip', './vendor/jszip.min.js');
 const getYaml = () => loadScript('jsyaml', './vendor/js-yaml.min.js');
 const getTurndown = () => loadScript('TurndownService', './vendor/turndown.js');
 const getLame = () => loadScript('lamejs', './vendor/lame.min.js');
@@ -85,14 +85,23 @@ export async function structuredTextConvert(file, from, to) {
   return blobFromText(result.content, result.mime, result.ext);
 }
 
-async function getPdfjs() {
+export async function getPdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = import('./vendor/pdf.min.mjs').then((mod) => {
-      mod.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', import.meta.url).href;
+      mod.GlobalWorkerOptions.workerSrc = '/tools/vendor/pdf.worker.min.mjs';
       return mod;
     });
   }
   return pdfjsPromise;
+}
+
+export async function openPdf(data) {
+  const pdfjs = await getPdfjs();
+  return pdfjs.getDocument({
+    data,
+    cMapUrl: new URL('./vendor/cmaps/', import.meta.url).href,
+    cMapPacked: true,
+  }).promise;
 }
 
 function blobFromText(content, mime, ext) {
@@ -130,8 +139,7 @@ function pdfTextPage(items) {
 }
 
 export async function pdfToText(file) {
-  const pdfjs = await getPdfjs();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const doc = await openPdf(new Uint8Array(await file.arrayBuffer()));
   try {
     const pages = [];
     for (let n = 1; n <= doc.numPages; n += 1) {
@@ -148,8 +156,7 @@ export async function pdfToText(file) {
 }
 
 export async function pdfToImages(file, target) {
-  const pdfjs = await getPdfjs();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const doc = await openPdf(new Uint8Array(await file.arrayBuffer()));
   const maxPages = 80;
   try {
     if (doc.numPages > maxPages) throw new Error(`PDF 超过 ${maxPages} 页，请拆分后再转`);

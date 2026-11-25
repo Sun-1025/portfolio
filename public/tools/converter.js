@@ -8,6 +8,8 @@ import {
   pptxConvert, epubConvert, fb2Convert, cbzToPdf, modelConvert,
   yamlConvert, structuredTextConvert, htmlToMarkdownFile, audioBufferToMp3,
 } from './docs-core.js';
+import { pdfToDocx } from './lib/pdf-to-docx.js';
+import { printDocx } from './lib/word-print.js';
 
 const MAX_BYTES = {
   image: 60 * 1024 * 1024,
@@ -70,6 +72,7 @@ function saveHistory() {
 function statusText(item) {
   if (item.status === 'working') return '<span class="conv-working"><i></i>转换中</span>';
   if (item.status === 'done') return `<span class="conv-done">完成 · ${formatBytes(item.resultBlob?.size || 0)}</span>`;
+  if (item.status === 'printed') return '<span class="conv-done">已打开打印面板</span>';
   if (item.status === 'error') return `<span class="conv-error">失败 · ${escape(item.error || '未知错误')}</span>`;
   return `<span class="conv-ready">待转换 · ${formatBytes(item.file.size)}</span>`;
 }
@@ -84,7 +87,10 @@ function rowMarkup(item, index) {
        <button type="button" class="conv-row-btn" data-action="remove" data-id="${item.id}" aria-label="移除">×</button>`
     : item.status === 'working'
       ? '<span class="conv-row-btn is-loading">处理中</span>'
-      : `<button type="button" class="conv-row-btn is-primary" data-action="run" data-id="${item.id}">${item.status === 'error' ? '重试' : '转换'}</button>
+      : item.status === 'printed'
+        ? `<button type="button" class="conv-row-btn is-primary" data-action="run" data-id="${item.id}">再次打印</button>
+           <button type="button" class="conv-row-btn" data-action="remove" data-id="${item.id}" aria-label="移除">×</button>`
+        : `<button type="button" class="conv-row-btn is-primary" data-action="run" data-id="${item.id}">${item.status === 'error' ? '重试' : '转换'}</button>
          <button type="button" class="conv-row-btn" data-action="remove" data-id="${item.id}" aria-label="移除">×</button>`;
   return `<div class="conv-row" data-id="${item.id}">
     <span class="conv-row-index">${String(index + 1).padStart(2, '0')}</span>
@@ -104,13 +110,14 @@ function renderQueue() {
   els.queue.innerHTML = state.items.map(rowMarkup).join('');
   els.empty.hidden = state.items.length > 0;
   els.queue.hidden = state.items.length === 0;
-  const done = state.items.filter((item) => item.status === 'done').length;
+  const done = state.items.filter((item) => item.status === 'done' || item.status === 'printed').length;
+  const downloadable = state.items.filter((item) => item.status === 'done' && item.resultBlob).length;
   const working = state.items.filter((item) => item.status === 'working').length;
   els.queueCount.textContent = `QUEUE / ${String(state.items.length).padStart(2, '0')}`;
   els.progressLabel.textContent = `${done} / ${state.items.length} DONE`;
   els.progressBar.style.width = state.items.length ? `${Math.round((done / state.items.length) * 100)}%` : '0%';
   els.convertAll.disabled = state.busy || !state.items.some((item) => item.status === 'ready' || item.status === 'error');
-  els.downloadAll.disabled = state.busy || !done;
+  els.downloadAll.disabled = state.busy || !downloadable;
   els.clear.disabled = state.busy || !state.items.length;
   if (working) els.progressBar.style.width = `${Math.max(4, Math.round((done / state.items.length) * 100))}%`;
 }
@@ -275,6 +282,13 @@ async function convertItem(item) {
     let blob;
     let outExt = item.target;
     let note = '';
+    if (item.family === 'office' && item.ext === 'docx' && item.target === 'pdf') {
+      await printDocx(await item.file.arrayBuffer());
+      item.resultBlob = null;
+      item.status = 'printed';
+      toastFn(`${item.file.name} 已打开打印面板；选择「另存为 PDF」保存`);
+      return;
+    }
     if (item.family === 'image') {
       if (item.target === 'pdf') {
         const result = await imageToPdf(item.file);
@@ -310,10 +324,17 @@ async function convertItem(item) {
         blob = new Blob([result.content], { type: result.mime });
       }
     } else if (item.family === 'pdf') {
-      const result = item.target === 'txt' ? await pdfToText(item.file) : await pdfToImages(item.file, item.target);
-      blob = result.blob;
-      outExt = result.ext;
-      note = result.note || '';
+      if (item.target === 'docx') {
+        const result = await pdfToDocx(item.file);
+        blob = result.blob;
+        outExt = 'docx';
+        note = result.noTextPages.length ? `${result.noTextPages.length} 页无文字层` : '仅保留文字与段落顺序';
+      } else {
+        const result = item.target === 'txt' ? await pdfToText(item.file) : await pdfToImages(item.file, item.target);
+        blob = result.blob;
+        outExt = result.ext;
+        note = result.note || '';
+      }
     } else if (item.family === 'office') {
       const result = item.ext === 'docx' ? await docxConvert(item.file, item.target)
         : (item.ext === 'xlsx' || item.ext === 'xls' || item.ext === 'ods') ? await xlsxConvert(item.file, item.target)
