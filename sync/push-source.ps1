@@ -74,7 +74,7 @@ Get-ChildItem -LiteralPath (Join-Path $root 'docs') -File -Filter '*.md' -Force 
     ForEach-Object {
         $paths += 'docs/' + $_.Name
     }
-$dirs = @('src', 'public', 'scripts', 'sync', 'ai-server')
+$dirs = @('src', 'public', 'ai-server')
 foreach ($dir in $dirs) {
     Get-ChildItem -LiteralPath (Join-Path $root $dir) -Recurse -File -Force | ForEach-Object {
         $rel = $_.FullName.Substring($root.Length + 1).Replace('\', '/')

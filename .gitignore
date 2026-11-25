@@ -25,5 +25,11 @@ Thumbs.db
 qa/
 .tech-backup/
 
+# 本地同步日志与一次性脚本（不发布）
+sync/*.log
+scripts/_*.py
+scripts/portrait-id.js
+scripts/apply-copy-v4.js
+
 # 本地私密备份（不要提交）
 private/
