@@ -10,7 +10,7 @@
 - 新增 `public/sw.js` 并在首页注册：首次在线访问后预缓存前台壳、工具模块、pdf.js/mammoth 等 vendor 与中文 CMap，DevTools offline 下可打开 `#/tools/pdf-to-word` 并完成转换；只缓存本域资源，不上传文件。
 - `data/site.json` 新增 `pdf-to-word`、`word-to-pdf` 两条，`tools.routes` 由 5 改为 7；现有 5 个工具、导航、视觉 token、后台和路由结构未改。
 - M1 实测：10 页纯文字 PDF → 59 段落 + 9 个分页符；双栏文字齐全（版式丢失提示保留）；扫描件/局部扫描件按规则处理；含图片/表格 DOCX 打印预览 A4；100MB PDF 被 80MB 上限拦截；390×844 无横向溢出；offline 转换通过。
-- 构建：`npm run build` 通过，`dist` 86 文件 / 10,343,727B（约 9.86MB）；截图在 `_shots/t1/`。
+- 构建：`npm run build` 通过，`dist` 86 文件 / 10,344,116B（约 9.86MB）；截图在 `_shots/t1/`。
 
 ## 2026-11-25 — A2 Threads / A3 布局收口 / 仓库文档重建
 
