@@ -100,6 +100,7 @@ function makeDock(contacts, facts, quick) {
       </form>
       <div class="ai-hint">${contactLine || CONTACT_TEXT}<br>回答只来自站上公开信息；不确定的问题会直接说不确定。</div>
     </section>
+    <span class="ai-fab-bubble" aria-hidden="true">我是此站 <b>Agent</b>，<br><em>有什么问题都可以问我</em></span>
     <button class="ai-fab" id="aiFab" type="button" aria-label="打开 AI 助手" aria-expanded="false" aria-controls="aiPanel">
       <span class="ai-fab-ring" aria-hidden="true"></span>
       <span class="ai-fab-mark">${LOGO_SVG}</span>
@@ -123,6 +124,7 @@ function makeDock(contacts, facts, quick) {
 
   function setOpen(open) {
     panel.hidden = !open;
+    dock.classList.toggle('is-open', open);
     fab.setAttribute('aria-expanded', String(open));
     if (open) { setTimeout(() => input.focus(), 30); scrollToEnd(); }
   }

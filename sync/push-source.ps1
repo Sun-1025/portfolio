@@ -63,28 +63,51 @@ function Invoke-GH {
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $paths = @(
-    'README.md', 'package.json', 'package-lock.json', 'server.js', '.env.example', '.gitignore',
+    'README.md', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'server.js', '.env.example', '.gitignore',
     'data/site.json',
-    'docs/v5/01-change-list.md', 'docs/v5/02-deploy.md', 'docs/v5/03-image-map.md',
-    'docs/v5/04-copy.md', 'docs/v5/05-self-check.md', 'docs/v5/06-not-public.md',
-    'docs/后台使用手册.md', 'docs/cms-改造说明.md', 'docs/v6-uiux-验收报告.md',
-    'docs/a2-threads-验收报告.md',
     'scripts/export-static.js', 'scripts/init-admin.js', 'scripts/migrate-content.js',
     'sync/deploy-v5-pages.ps1', 'sync/deploy-v6-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
 )
-$dirs = @('src', 'public', 'ai-server')
+# 只发布仓库文档目录中的当前版 ASCII 文档；旧版中文名文档不再进入远端 tree，避免出现 ???? 文件名。
+Get-ChildItem -LiteralPath (Join-Path $root 'docs') -File -Filter '*.md' -Force |
+    Where-Object { $_.Name -match '^0[0-9]-' } |
+    ForEach-Object {
+        $paths += 'docs/' + $_.Name
+    }
+$dirs = @('src', 'public', 'scripts', 'sync', 'ai-server')
 foreach ($dir in $dirs) {
     Get-ChildItem -LiteralPath (Join-Path $root $dir) -Recurse -File -Force | ForEach-Object {
         $rel = $_.FullName.Substring($root.Length + 1).Replace('\', '/')
-        if ($rel -match 'node_modules|\.next|\.env|/uploads/') {
-            if ($rel -notmatch '^public/uploads/avatars/') {
-                if ($rel -ne 'public/uploads/.gitkeep') { return }
-            }
+        # 保留 ai-server/.env.example；其余环境文件、依赖、构建产物、上传目录均排除。
+        if ($rel -match 'node_modules|\.next|/uploads/|tsconfig\.tsbuildinfo$') {
+            return
+        }
+        if ($rel -match '(^|/)\.env\.local$|(^|/)\.env$') {
+            return
         }
         $paths += $rel
     }
 }
 $paths = $paths | Sort-Object -Unique
+
+# 发布前硬性隐私检查：不允许用户数据、密钥、备份、私密目录进入 tree。
+$forbidden = @(
+    'data/users.json', 'data/.jwt-secret', 'data/guestbook.json',
+    'private/', 'qa/', '_shots/', '_backup/'
+)
+foreach ($rel in $paths) {
+    foreach ($prefix in $forbidden) {
+        if ($rel -eq $prefix.TrimEnd('/') -or $rel.StartsWith($prefix)) {
+            throw "forbidden path in publish list: $rel"
+        }
+    }
+}
+foreach ($rel in $paths) {
+    $file = Join-Path $root ($rel.Replace('/', '\'))
+    if (-not (Test-Path -LiteralPath $file)) { throw "missing source file: $rel" }
+    $hit = Select-String -LiteralPath $file -Pattern 'ADMIN_PASSWORD\s*=\s*(?!replace-with-a-strong-password)[A-Za-z0-9!@#$%^&*()_+=-]{8,}|LLM_API_KEY\s*=\s*sk-(?!your-server-side-key)[A-Za-z0-9]|Bearer\s+[A-Za-z0-9]{20,}' -ErrorAction SilentlyContinue
+    if ($hit) { throw "possible secret in publish file: $rel" }
+}
 
 Write-Output "Repo: $Owner/$Repo ($Branch), files: $($paths.Count)"
 $ref = Invoke-GH -Method Get -Uri "/repos/$Owner/$Repo/git/ref/heads/$Branch"
@@ -130,7 +153,7 @@ foreach ($rel in $paths) {
 }
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: A2 Threads 背景替换（全屏跟随 / 浅色深线）'
+    message = 'docs: rebuild repository docs, polish A3 layout, add agent bubble'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

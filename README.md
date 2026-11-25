@@ -1,106 +1,187 @@
-# 孙志昊 · 个人站 5.0
+# 孙志昊 · 个人站 portfolio-v2
 
-> 技术名片 + 成长档案 + 自研小工具。保留路由、主题切换、留言、工具箱、CMS 后台逻辑。
+> 技术名片、成长档案和自研工具，放在同一个长期维护的个人站点里。
+>
+> 线上站点：<https://sunzhihaoai.top>  
+> 经典版归档：<https://sunzhihaoai.top/classic/>  
+> GitHub：<https://github.com/Sun-1025/portfolio>  
+> Gitee：<https://gitee.com/SunZHAO1025/portfolio>
 
-线上：<https://sunzhihaoai.top>　经典版归档：<https://sunzhihaoai.top/classic/>
+这是一个可以直接运行、构建和部署的完整源码仓库，不只是页面截图。前台、后台、内容数据、在线工具、构建脚本和部署脚本都在这里；管理员密码、JWT 密钥、用户数据和私密素材不在仓库里。
 
-## 5.0 改了什么
+## 当前状态
 
-- 从终端极客风 v4 改为极简科技：近黑底、蓝灰点缀、克制的磨砂玻璃；浅色主题同步可用。
-- 导航一级收为 **实习、经历、兴趣**；项目放进经历，工具箱保留独立入口。
-- 首页四张项目卡：个人主页、在线工具箱、家用语音监测系统、图书管理系统；公益实践单独一张卡。
-- 经历时间线四段：校内预备实习、东营区图书馆、青年志愿者协会、科技协会。
-- 兴趣六格：骑行、羽毛球、登山、北京、淄博、济南；接入 21 张真实照片。
-- 25 张公开 WebP，全部在 `public/assets/photos/`；理财截图不公开，儿童正脸不公开。
-- 静态站 62 files / 9.66 MB（构建后 `dist`）；照片单张 ≤500 KB。
+- 站点版本：v5.0 主体 + v6 UI/UX + A2 Threads 动态背景 + A3 布局收口。
+- 页面：首页、经历/项目、项目详情、工具箱、工具详情、关于、留言板、后台、经典版归档。
+- 主题：深色 / 浅色双主题；桌面、平板、390px 手机已做过回归。
+- 后台：`/admin` 可视化内容管理，支持条目编辑、排序、公开/私密/草稿、回收站、媒体库、备份和发布。
+- 工具：文件转换台、Markdown 转 HTML、字数统计、单位换算、日期计算；工具逻辑全部在浏览器本地运行。
+- 最新本地构建：`72` 个文件，`10,197,545` 字节（约 9.73 MB）。
+- A2 验收：`dist` 构建通过；深色对比度 17.14:1，浅色 15.75:1；60s 桌面 rAF 平均 4.166ms；390×844 无横向溢出；WebGL2 不可用、页面隐藏、`prefers-reduced-motion` 均有降级路径。
+- A3 收口：关于页右侧信息栏与主栏垂直居中；回到顶部按钮文字上下居中；工具台左右两栏等高；站内 Agent 增加气泡提示。
 
-硬参数：桌面导航 72px、移动 68px；桌面 H1 40px、移动 32px；正文 16px / 1.7；标签 13px；磨砂只用于导航、卡片、弹层、抽屉、助手面板，`blur(22px)`。
+## 这个仓库包含什么
+
+| 目录/文件 | 作用 |
+|---|---|
+| `public/` | 前台 SPA、经典版、后台、工具模块、CSS、公开图片等静态资源 |
+| `src/` | Express 服务、鉴权、内容过滤、内容读写、上传、留言、发布、SSE |
+| `scripts/` | 静态导出、管理员初始化、内容迁移等构建/运维脚本 |
+| `ai-server/` | 可选的 Next.js AI 代理，负责服务端持有模型密钥、限流、SSE 转发 |
+| `data/site.json` | 站点公开内容的唯一数据源；真实私密数据不进入仓库 |
+| `docs/` | 架构、数据、部署、测试、隐私和版本过程文档 |
+| `sync/` | GitHub Pages 发布与源码同步脚本；脚本从本机凭据读取密钥，不保存 token |
+| `CHANGELOG.md` | 版本演进记录 |
+
+`dist/` 是构建产物，不提交；执行 `npm run build` 可随时重建。
+
+## 技术栈
+
+- 前端：原生 HTML / CSS / JavaScript，SPA hash 路由，无前端框架运行时。
+- 服务：Node.js 18+、Express 4、JWT + HttpOnly Cookie、SSE。
+- 内容：JSON 文件 + 原子写入 + 自动备份；后台做字段白名单和可见性过滤。
+- 样式：CSS 自定义属性 + Tailwind CLI 只负责工具类产物；视觉主体在 `app.css`、`app-v5.css`、`app-v6.css`。
+- 动效：React Bits Threads 思路的 WebGL2 线束背景（`public/assets/js/threads.js`），原生 ESM、零依赖、单 `pointermove` 监听。
+- 工具：浏览器端原生模块，动态 `import()` 加载；不把用户文件上传到服务器。
+- AI：可选的 Next.js 代理；没有配置模型环境变量时，前端仍可正常显示，不阻塞主站。
+- 部署：静态导出到 GitHub Pages；源码同时同步 GitHub 与 Gitee；`sunzhihaoai.top` 自定义域名与 CNAME 保留。
 
 ## 快速启动
 
 ```powershell
-cd C:\Users\sun\OneDrive\Desktop\实习\portfolio-v2
+git clone https://github.com/Sun-1025/portfolio.git
+cd portfolio
 npm install
-npm start           # http://localhost:8080
+copy .env.example .env
+npm start
 ```
 
-首次启动前先复制 `.env.example` 为 `.env`，在 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 里填入自己的管理账号；仓库不提供可直接使用的默认密码。
+打开 `http://localhost:8080`。首次启动会在本机生成 `data/users.json` 与 `data/.jwt-secret`，两者都被 `.gitignore` 忽略。
 
-## 构建与部署
+后台地址：`http://localhost:8080/admin`。账号与密码只在本机配置中维护；仓库不提供默认密码。
+
+## 构建
 
 ```powershell
-npm run build       # Tailwind + 静态导出到 dist/
-npm run export      # 只导出静态站
+npm run build
 ```
 
-`dist/` 可直接放到 GitHub Pages、Gitee Pages 或任意静态主机。根域名仓库直接推 `dist` 内容；项目子路径用：
+构建会先压缩 Tailwind CSS，再由 `scripts/export-static.js` 导出 `dist/`。当前配置导出到站点根路径；部署到子路径时使用对应的 `--base` 参数重新导出。
 
-```powershell
-npm run export -- --base=/repo/
-```
+构建后应检查：
 
-当前 GitHub Pages 仓库 `Sun-1025/Sun-1025.github.io`，自定义域名 `sunzhihaoai.top`，CNAME 已保留。仓库内提供 `sync/deploy-v5-pages.ps1`（全量构建包 + 保留 CNAME）与 `sync/clean-pages.ps1`（清理旧文件）。
+- `dist/index.html` 存在，且 `/assets/js/threads.js` 被引用。
+- `dist/assets/js/dotfield.js` 不存在。
+- `dist` 文件数和总体积与本次构建一致。
+- `dist/CNAME` 保留自定义域名。
 
-## 路由
+## 目录地图
 
-| 路由 | 内容 |
-|---|---|
-| `#/` | 首页：Hero、四张项目卡、公益实践、关于、联系 |
-| `#/internship` | 实习：校内预备实习、东营区图书馆 |
-| `#/experience` | 经历：四个项目、公益实践、四段时间线、校园组织 |
-| `#/interest` | 兴趣六格 |
-| `#/interest/:id` | 兴趣详情（骑行 / 羽毛球 / 登山 / 北京 / 淄博 / 济南） |
-| `#/work/:id` | 项目详情（case-site / case-tools / case-voice / case-lib / case-physics） |
-| `#/tools` | 工具箱 |
-| `#/tools/:id` | 单个工具 |
-| `/classic/` | 经典版归档页 |
-
-`#/work` 无 id 时回退到 `#/experience`。
-
-## 目录
-
-```
+```text
 portfolio-v2/
-├─ data/site.json             站点内容（site/nav/branches/home/work/interests/tools/ai/notices/settings）
 ├─ public/
-│  ├─ index.html              前台 SPA 壳
-│  ├─ assets/css/app-v5.css   V5 视觉系统（最后加载）
-│  ├─ assets/js/app.js        路由与页面渲染
-│  ├─ assets/js/ai-dock.js    本地事实库 + 可选远程 AI
-│  ├─ assets/photos/          25 张公开 WebP + _manifest.json
-│  ├─ assets/covers/          四张项目线稿封面
-│  ├─ classic/index.html      经典版归档
-│  ├─ tools/                  工具箱模块与按需加载的 vendor
-│  └─ admin/                  CMS 后台
-├─ ai-server/                 可选 Next.js AI 代理（当前前端 endpoint 为空，走本地事实回退）
-├─ scripts/                   静态导出、初始化管理员等
-├─ sync/                      Pages 部署 / 清理脚本
-└─ docs/v5/                   交付文档
+│  ├─ index.html                 # 前台入口
+│  ├─ classic/index.html         # 经典版归档
+│  ├─ admin/                     # 可视化后台
+│  ├─ assets/
+│  │  ├─ css/                    # app.css / app-v5.css / app-v6.css / tailwind.css
+│  │  ├─ js/                     # app.js / admin.js / threads.js / ai-dock.js / backtop.js
+│  │  ├─ photos/                 # 站点公开照片与 manifest
+│  │  └─ covers/                 # 项目封面
+│  └─ tools/                     # 工具模块与转换逻辑
+├─ src/
+│  ├─ auth.js                    # JWT、Cookie、限流、会话
+│  ├─ content-filter.js          # 可见性、私密占位、静态导出过滤
+│  ├─ store.js                   # JSON 原子读写、备份、用户
+│  └─ routes/                    # auth/content/events/guestbook/publish/upload
+├─ scripts/
+│  ├─ export-static.js           # dist 导出
+│  ├─ init-admin.js              # 本机管理员初始化/重置
+│  └─ migrate-content.js         # 内容迁移
+├─ ai-server/                    # 可选 Next.js AI 代理
+├─ data/site.json                # 公开内容源
+├─ docs/                         # 详细文档
+├─ sync/                         # Pages 发布与源码同步
+├─ server.js
+└─ package.json
 ```
 
-## 留言与后台
+## 页面与路由
 
-- 源服务（Express）模式：留言写 `/api/guestbook`，页脚显示后台入口。
-- 静态站模式：`window.SZH_GUESTBOOK_ENDPOINT=''`，留言提交回退到邮箱 `mailto`；后台入口自动隐藏。
+- `#/`：首屏、精选项目、经历时间线、关于、联系方式、校园照片。
+- `#/work`：项目/实习/校园/兴趣案例列表。
+- `#/work/:id`：项目详情。
+- `#/tools`：工具箱列表。
+- `#/tools/:id`：工具详情，按 `module` 动态加载。
+- `#/about`：关于与完整经历。
+- `#/guestbook`：留言板；后端未配置时静态版自动回退。
+- `/classic/`：经典版静态归档，保留旧入口。
+- `/admin`：本机后台，只在 Node 服务模式可用，GitHub Pages 不提供后台与 API。
 
-后台 `/admin/` 只在源服务下使用；内容保存写入 `data/site.json`，每次保存自动备份到 `data/backups/`（最多 30 份）。`data/.jwt-secret`、`data/users.json`、`data/backups/` 不要提交到公开仓库。
+## 内容与后台
 
-## AI 助手
+`data/site.json` 是唯一内容源，主要包含：
 
-`public/assets/js/ai-dock.js` 内置本地事实库，`ai.endpoint` 为空时完全本地回答；面板里的快捷问题为「你在做什么项目 / 会哪些技术 / 能实习吗」。远程入口配置后才会请求服务端；服务端不可达时自动回退到本地事实。
+- `site`：站点标题、品牌、描述、主题色、页脚、版本。
+- `nav` / `branches`：导航入口和 SPA 分支开关。
+- `home`：首屏、精选项目、时间线、关于、联系方式、校园照片。
+- `work.cases`：项目、实习、校园、兴趣案例。
+- `interests`：兴趣相册。
+- `tools.items`：工具条目与模块映射。
+- `ai`：站内 AI 开关、接口地址、快捷问题。
+- `notices` / `settings`：公告和运行设置。
 
-## 图片与隐私
+后台支持三种可见性：`published`、`private`、`draft`。私密内容在 API 和静态导出两层都只保留占位，不会把真实内容带进公开页面。详细字段、接口和操作流程见 [docs/03-data-and-cms.md](docs/03-data-and-cms.md) 与 [docs/08-admin-guide.md](docs/08-admin-guide.md)。
 
-- 公开 25 张：项目 2、校园 2、兴趣 21；均为 WebP，长边 ≤1600，单张 ≤500 KB。
-- 公益课两张：封面只保留屏幕、教师和背影；第二张裁成手 / 桌面 / 桌腿，无儿童正脸。
-- 科协图已裁掉奖状墙；青协图只保留孙志昊本人可识别正脸。
-- 理财 11 张截图不复制、不部署；原因见 `docs/v5/06-not-public.md`。
+## 设计与交互
 
-## 文档
+- 深色是默认主视觉，浅色主题使用独立的玻璃材质；两套 token 都在 CSS 自定义属性里。
+- 首页背景从 v6 的 DotField 迁移到 Threads：全屏跟随指针、没有卡片冻结区、没有遮罩；指针离开后用 260ms 时间常数回中。
+- 卡片 hover 时使用 scoped 规则把 `backdrop-filter` 从 22px 降到 2px，保证线束能穿过卡面；默认卡面 token 不变。
+- 回到顶部按钮 hover 时展开显示 `Back to Top`，文字在按钮内水平、垂直居中。
+- 站内 Agent 使用流式 SSE，气泡提示在按钮左侧，打开面板后自动隐藏；所有指针交互只走 `PointerBus`，全站只保留一个 `pointermove` 监听。
+- 移动端 390×844、桌面 1440×900、1920×1080、2560×1440 都已做过布局和溢出检查。
 
-- [改动清单](docs/v5/01-change-list.md)
-- [部署与代码说明](docs/v5/02-deploy.md)
-- [图片落位对照表](docs/v5/03-image-map.md)
-- [全部板块文案](docs/v5/04-copy.md)
-- [自检报告](docs/v5/05-self-check.md)
-- [不建议公开的素材](docs/v5/06-not-public.md)
+## 开发过程
+
+这个站不是一次性成型的。它经历了经典版、v3 工具与 AI、v4 视觉重构、v5 极简导航、v6 UI 层、A1 点阵、A2 Threads、A3 布局收口等多个阶段；每一轮都保留了可回滚备份和验收记录。
+
+完整施工过程、设计取舍、遇到的问题和修复方式见 [docs/01-build-story.md](docs/01-build-story.md)。版本节点见 [docs/07-version-history.md](docs/07-version-history.md)。
+
+## 文档索引
+
+- [docs/00-overview.md](docs/00-overview.md)：项目总览和阅读顺序
+- [docs/01-build-story.md](docs/01-build-story.md)：从经典版到 A3 的完整施工过程
+- [docs/02-architecture.md](docs/02-architecture.md)：分层、模块边界、请求与数据流
+- [docs/03-data-and-cms.md](docs/03-data-and-cms.md)：内容模型、可见性、后台接口
+- [docs/04-build-deploy.md](docs/04-build-deploy.md)：构建、GitHub Pages、自定义域名、同步
+- [docs/05-testing.md](docs/05-testing.md)：测试矩阵、A2/A3 指标、已知边界
+- [docs/06-privacy-security.md](docs/06-privacy-security.md)：仓库隐私边界、密钥管理、泄露处置
+- [docs/07-version-history.md](docs/07-version-history.md)：版本表
+- [docs/08-admin-guide.md](docs/08-admin-guide.md)：后台使用手册（不含密码）
+- [docs/09-credits.md](docs/09-credits.md)：第三方素材与许可
+
+## 隐私与安全
+
+这个仓库是公开源码仓库，遵循以下边界：
+
+- 不提交 `.env`、`.env.local`、`data/users.json`、`data/.jwt-secret`、`data/backups/`、`data/guestbook.json`、`private/`、`qa/`、`_shots/`、`_backup/`。
+- 不提交管理员密码、GitHub/Gitee token、模型 API Key、JWT 签名密钥。
+- 后台密码只在本机 `.env` 或后台账号设置中维护；文档不记录明文密码。
+- 私密内容在内容层和导出层都会被过滤；私密照片不复制到 `dist/`。
+- 站点公开的联系方式属于站点内容，不在 README 和 docs 里重复；如要撤下，直接在后台把对应条目设为私密。
+- 如果密码曾经出现在某个提交中，应立即在后台修改密码，并清理对应文档；不要只删除当前文件而继续使用旧密码。
+
+具体清单和处置步骤见 [docs/06-privacy-security.md](docs/06-privacy-security.md)。
+
+## 第三方与许可
+
+页面使用 React Bits Threads 的结构思路，工具台的部分交互参考 Uiverse 的开源按钮与表单；字体、图标和照片的授权与出处记录在 [docs/09-credits.md](docs/09-credits.md)。没有把第三方整包依赖直接塞进页面运行时。
+
+## 维护约定
+
+- 先改 `public/` 与 `src/` 的源码，再执行 `npm run build`；不要直接编辑 `dist/`。
+- 任何视觉改动都要保留默认 token 与移动端回退，先量测再上线。
+- 不把临时截图、QA 日志、备份目录、密钥文件加入 Git。
+- 同步脚本只从 Windows 凭据管理器读取 token，token 不写入仓库。
+- 远端推送前先检查 `git status` / tree 清单，确认没有密码、用户数据和私密素材。

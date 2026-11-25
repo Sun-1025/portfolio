@@ -213,22 +213,24 @@ html[data-bg="threads"] .v5-tool-card:hover {
 .pf-top::before {
   content: "Back to Top";
   position: absolute;
+  top: 50%;
   left: 50%;
-  bottom: 8px;
+  width: 100%;
   color: #fff;
   font-family: var(--font-sans, "IBM Plex Sans", "Noto Sans SC", sans-serif);
   font-size: 13px;
   line-height: 1;
+  text-align: center;
   white-space: nowrap;
   opacity: 0;
-  transform: translate(-50%, 14px);
+  transform: translate(-50%, calc(-50% + 14px));
   transition: opacity 0.3s, transform 0.3s;
   pointer-events: none;
 }
 @media (hover: hover) and (pointer: fine) {
   .pf-top:hover { width: 140px; border-radius: 50px; background: rgb(181, 160, 255); }
   .pf-top:hover .pf-top__icon { transform: translateY(-200%); }
-  .pf-top:hover::before { opacity: 1; transform: translate(-50%, 0); }
+  .pf-top:hover::before { opacity: 1; transform: translate(-50%, -50%); }
 }
 .pf-top:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .pf-top:active { transform: scale(0.96); }
