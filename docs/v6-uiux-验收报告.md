@@ -2,7 +2,7 @@
 
 日期：2026-11-25  
 范围：P1 动态点阵背景 DotField、P2 圆形回到顶部、P3 Tooltip / Focus Cards / Glare，以及 reduced-motion、触屏与性能降级。  
-结论：代码完成，本地 Edge 实测通过；`dist` 已按最终源码重建。**尚未部署 GitHub Pages、尚未推送源码。**
+结论：代码完成，本地 Edge 实测通过；GitHub Pages 已发布，GitHub 与 Gitee 源码已同步。`dist` 为最终构建版本。
 
 ## 1. 落地内容
 
@@ -46,12 +46,20 @@
 
 构建：
 - `dist/` 已于最终源码后重建：72 个文件、9.72 MB；`dist/uploads/avatars/` 四张头像齐全。
+- GitHub Pages `Sun-1025/Sun-1025.github.io` 已发布 main `4e19d3fa626165e9536b427044f3dcdc78eedfbd`，CNAME 保留；https://sunzhihaoai.top 返回 200。
+- GitHub 源码 `Sun-1025/portfolio` 与 Gitee `SunZHAO1025/portfolio` 的 main 已同步。
 
 ## 4. 浏览器验收
 
 环境：Windows / Edge，1440×1000 与 390×844；外部字体请求 abort；Playwright 驱动。
 
-桌面：
+线上发布：
+- `https://sunzhihaoai.top` 首页 200；`dotfield.js`、`backtop.js`、`ui-fx.js`、`app-v6.css`、`uploads/avatars/school.webp` 均 200。
+- 线上 1440：canvas 1、回顶 1、头像 4、无横向溢出、控制台无 pageerror。
+- 线上 390：canvas 0、回顶 1、头像 4、无横向溢出、控制台无 pageerror。
+- 线上可见正文无邮箱与微信号。
+
+本地桌面：
 - `canvas=1`、`.site-grid display:none`、`cursor=1`、`.pf-top=1`、头像 4、Focus 组 2、Glare 封面 10。
 - Focus：另一张项目卡 `filter=blur(6px)`、`opacity=.55`；兴趣页同样生效。
 - Glare：`is-glare=true`、`--gx=51.00%`、`::after opacity=.32`；封面倾斜生效。
@@ -121,6 +129,8 @@ reduced-motion：
 - `09-glow-indigo.png` / `10-glow-accent.png`：同机位 `#6366f1` 与 accent 对比
 - `11-reduced-motion.png`：reduced-motion 静态点阵
 - `12-keyboard-focus.png`：键盘 Focus 态
+- `14-live-1440.png`：线上站 1440 首屏
+- `14-live-390.png`：线上站 390 首屏
 
 ## 8. 待拍板 / 已知边界
 
@@ -128,7 +138,7 @@ reduced-motion：
 2. **浅色主题**：DotField 保留，但透明度很低；如果觉得多余，可以在 `html[data-theme="light"]` 下直接关闭 canvas、恢复 `.site-grid`。
 3. **点阵亮度**：当前是“可读性压低版”。若要严格按施工单 32%→100%，把 `lum` 一行改回即可，但会明显更吵。
 4. **邮箱脱敏**：为满足施工单隐私红线，页脚/关于侧不再显示明文邮箱；QQ 号未脱敏。若更看重直接联系，可恢复 `esc(email.value)`。
-5. **未发布**：远端 Pages 仍是旧版本；`dist` 已就绪，等确认后再跑 `sync/deploy-v6-pages.ps1` 与 `sync/push-source.ps1`。
+5. **已发布**：GitHub Pages、GitHub 源码与 Gitee 源码均已同步；后续改动需要重新 `npm run build`、部署 Pages 并重推两份源码。
 
 ## 9. 回滚
 
