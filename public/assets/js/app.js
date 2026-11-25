@@ -171,8 +171,31 @@ function projectCover(c) {
   return `<div class="v5-cover-fallback"><span>${esc(c.number || '')}</span><b>${esc((c.title || 'C').slice(0, 1))}</b></div>`;
 }
 
-function chips(tags = [], max = 4) {
-  return `<div class="v5-chiprow">${tags.slice(0, max).map((t) => `<span class="v5-chip">${esc(t)}</span>`).join('')}</div>`;
+const TAG_NOTES = {
+  'C 语言': '建库、建表与链表增删改查',
+  'SQL Server': '数据库设计与 SQL 查询',
+  '数据结构': '链表与结构体实践',
+  'JavaScript': '页面交互与工具逻辑',
+  'HTML / CSS': '页面结构与响应式样式',
+  'GitHub Pages': '静态站部署与自定义域名',
+  'Gitee Pages': '国内镜像部署',
+  '物联网': '传感器数据与设备联调',
+  '声音可视化': '实时波形与频谱展示',
+  'WiFi 链路': 'ESP32 联网与数据传输',
+  '本地处理': '文件不上传，浏览器内完成',
+  '无上传': '转换全程留在本机',
+  '公益课': '课程设计与现场授课',
+  '课程设计': '四十分钟实验课拆解',
+  '现场授课': '图书馆现场带课'
+};
+
+function chipTip(tag, title) {
+  const note = TAG_NOTES[tag] || '这个案例里用到的一项技能';
+  return `${tag} · 用在《${title}》：${note}`;
+}
+
+function chips(tags = [], max = 4, context = '') {
+  return `<div class="v5-chiprow">${tags.slice(0, max).map((t) => `<span class="v5-chip"${context ? ` data-tip="${esc(chipTip(t, context))}"` : ''}>${esc(t)}</span>`).join('')}</div>`;
 }
 
 function projectCard(c, index = 0) {
@@ -186,13 +209,13 @@ function projectCard(c, index = 0) {
       </div>
     </article>`;
   }
-  return `<a class="v5-project-card reveal" href="#/work/${esc(c.id)}">
-    <div class="v5-project-media">${projectCover(c)}<span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
+  return `<a class="v5-project-card reveal v5-focus-item" href="#/work/${esc(c.id)}">
+    <div class="v5-project-media v5-glare">${projectCover(c)}<span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
     <div class="v5-project-copy">
       <span class="v5-project-meta">${esc(c.number || '')} / ${esc(c.category === 'practice' ? '公益实践' : '项目')}</span>
       <h3 class="v5-project-title">${esc(c.title)}</h3>
       <p class="v5-project-summary">${esc(c.summary)}</p>
-      ${chips(c.tags || [], 3)}
+      ${chips(c.tags || [], 3, c.title)}
       <span class="v5-card-link">查看记录 ${ARROW}</span>
     </div>
   </a>`;
@@ -267,8 +290,8 @@ function interestCard(item, index = 0) {
   const count = (item.images || []).length;
   const first = (item.images || [])[0];
   const alt = (first && first.alt) || `${item.title || '兴趣'}照片`;
-  return `<a class="v5-interest-card reveal" href="#/interest/${esc(item.id)}">
-    <div class="v5-interest-cover"><img src="${safeUrl(item.cover)}" alt="${esc(alt)}" loading="lazy" decoding="async"><span>${String(index + 1).padStart(2, '0')}</span></div>
+  return `<a class="v5-interest-card reveal v5-focus-item" href="#/interest/${esc(item.id)}">
+    <div class="v5-interest-cover v5-glare"><img src="${safeUrl(item.cover)}" alt="${esc(alt)}" loading="lazy" decoding="async"><span>${String(index + 1).padStart(2, '0')}</span></div>
     <div class="v5-interest-copy">
       <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>${count} 张</span></div>
       <p>${esc(item.lead || '')}</p>
@@ -335,7 +358,7 @@ function renderHome() {
 
   <section class="v5-section wrap">
     ${sectionHead('01 / PROJECTS', '做过的四件事', '本站、工具箱、语音监测、图书管理。先看东西，再看过程。')}
-    <div class="v5-project-grid">${selected.slice(0, 4).map(projectCard).join('')}</div>
+    <div class="v5-project-grid v5-focus-group">${selected.slice(0, 4).map(projectCard).join('')}</div>
     <a class="v5-more" href="#/experience">查看全部项目与经历 ${ARROW}</a>
   </section>
 
@@ -351,7 +374,7 @@ function renderHome() {
 
   <section class="v5-section wrap">
     ${sectionHead('04 / INTERESTS', '离开工位以后', '骑行、羽毛球、登山，还有三座城市。照片比文字多。')}
-    <div class="v5-interest-grid">${interests.map(interestCard).join('')}</div>
+    <div class="v5-interest-grid v5-focus-group">${interests.map(interestCard).join('')}</div>
     <a class="v5-more" href="#/interest">查看全部兴趣照片 ${ARROW}</a>
   </section>
 
@@ -366,7 +389,7 @@ function renderHome() {
       <aside class="v5-about-side">
         <div class="v5-side-block"><span class="v5-side-label">资料 / PROFILE</span>${facts}</div>
         <div class="v5-side-block"><span class="v5-side-label">已掌握 / SKILLS</span><div class="v5-skills">${skills}</div></div>
-        <div class="v5-side-block"><span class="v5-side-label">邮箱 / EMAIL</span><a class="v5-side-mail" href="${safeUrl(email.url)}">${esc(email.value)}</a></div>
+        <div class="v5-side-block"><span class="v5-side-label">邮箱 / EMAIL</span><a class="v5-side-mail" href="${safeUrl(email.url)}">${email.url ? '点击发送' : esc(email.value)}</a></div>
       </aside>
     </div>
   </section>`;
@@ -424,7 +447,7 @@ function renderExperience() {
   </section>
   <section class="v5-section wrap">
     ${sectionHead('02.1 / PROJECTS', '四件做过的东西', '每张卡片先写做了什么、我负责哪一段、最后留下什么。')}
-    <div class="v5-project-grid">${selected.slice(0, 4).map(projectCard).join('')}</div>
+    <div class="v5-project-grid v5-focus-group">${selected.slice(0, 4).map(projectCard).join('')}</div>
   </section>
   <section class="v5-section wrap v5-practice-section">
     ${sectionHead('02.2 / PRACTICE', '公益课', '「小小物理学家探险队」放在项目之外，单独记。')}
@@ -482,7 +505,7 @@ function renderInterest(id) {
     <p>骑行、羽毛球、登山，还有北京、淄博、济南。每个主题点开是一个小相册。</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-interest-grid v5-interest-grid--page">${interests.map(interestCard).join('')}</div>
+    <div class="v5-interest-grid v5-interest-grid--page v5-focus-group">${interests.map(interestCard).join('')}</div>
   </section>`;
 }
 
@@ -503,7 +526,7 @@ function renderCase(id) {
   const sections = (c.sections || []).map((s) => `<h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>`).join('');
   const rawImages = c.images || [];
   const images = rawImages.map((img) => typeof img === 'string' ? { src: img, alt: c.title, caption: '' } : img);
-  const tags = (c.tags || []).map((t) => `<span class="v5-skill">${esc(t)}</span>`).join('');
+  const tags = (c.tags || []).map((t) => `<span class="v5-skill" data-tip="${esc(chipTip(t, c.title))}">${esc(t)}</span>`).join('');
   const links = (c.links || []).map((l) => `<a class="v5-btn" href="${safeUrl(l.url)}" target="_blank" rel="noopener">${esc(l.text)} ${ARROW}</a>`).join('');
 
   return `
@@ -660,7 +683,7 @@ function renderFoot() {
       const inner = `<span class="foot-contact-label">${esc(c.title || c.label || '')}</span><span class="foot-contact-value">暂未公开</span>`;
       return `<span class="foot-contact-item">${inner}</span>`;
     }
-    const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${esc(c.value)}</span>`;
+    const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${(c.label || '').includes('邮箱') && c.url ? '点击发送' : esc(c.value)}</span>`;
     if (c.url) return `<a class="foot-contact-item" href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${inner}<span class="foot-contact-arrow">${ARROW}</span></a>`;
     return `<span class="foot-contact-item">${inner}</span>`;
   }).join('');
@@ -670,8 +693,22 @@ function renderFoot() {
     <div class="foot-top">
       <div>
         <h2 class="foot-title">有想法，<br>随时聊。</h2>
-        ${email ? (isLocked(email) ? `<span class="foot-mail">暂未公开</span>` : `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${esc(email.value)}</a>`) : ''}
+        ${email ? (isLocked(email) ? `<span class="foot-mail">暂未公开</span>` : `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${email.url ? '邮箱 · 点击发送' : esc(email.value)}</a>`) : ''}
         <p class="foot-motto">无限进步</p>
+        <div class="v5-avatar-group" role="group" aria-label="关于我的四个切面">
+          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="山东石油化工学院" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，山东石油化工学院物联网工程 2025 级">
+            <img src="/uploads/avatars/school.webp" alt="" loading="lazy" decoding="async">
+          </button>
+          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="校内科技协会" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，校内科技协会">
+            <img src="/uploads/avatars/kexie.webp" alt="" loading="lazy" decoding="async">
+          </button>
+          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="公益课讲师 · 东营区图书馆" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，东营区图书馆公益课讲师">
+            <img src="/uploads/avatars/physics.webp" alt="" loading="lazy" decoding="async">
+          </button>
+          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="骑行 · 东营" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，骑行爱好者">
+            <img src="/uploads/avatars/cycling.webp" alt="" loading="lazy" decoding="async">
+          </button>
+        </div>
       </div>
       <div class="foot-contact-list">
         ${contactItems}
@@ -731,7 +768,7 @@ function guestMailto(nickname, text, hint) {
   const subject = `网站留言 · ${nickname}`;
   const body = `昵称：${nickname}\n\n${text}\n\n（来自 sunzhihaoai.top 留言框）`;
   window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  if (hint) hint.textContent = `已打开邮件应用。如果没有反应，复制这段内容发到 ${email}。`;
+  if (hint) hint.textContent = '已打开邮件应用。如果没有反应，请使用页脚的邮箱入口。';
   toast('已打开邮件应用');
 }
 
@@ -776,7 +813,7 @@ function bindGuestbook() {
     hint.textContent = '留言会公开显示在下方，不用登录。';
     refreshGuestbook(list, count, hint);
   } else {
-    hint.textContent = `静态站点：提交后会打开邮件应用，把留言发到 ${guestbookEmail()}。`;
+    hint.textContent = '静态站点：提交后会打开邮件应用，发到站内邮箱。';
   }
 
   form.addEventListener('submit', async (event) => {

@@ -7,6 +7,7 @@
 
   const doc = document;
   const root = doc.documentElement;
+  const bus = window.PointerBus;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const LINK_SEL = 'a, button, [role="button"], input, textarea, .v5-project-card, .v5-tool-card';
@@ -15,12 +16,22 @@
   /* ---------------- 第一件：光标 ---------------- */
   let cursor = null, dot = null, ring = null;
   let tx = -100, ty = -100, rx = -100, ry = -100;
+  let cursorRaf = 0;
   function frame() {
+    cursorRaf = 0;
     rx += (tx - rx) * 0.16;
     ry += (ty - ry) * 0.16;
     if (dot) dot.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
     if (ring) ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
-    requestAnimationFrame(frame);
+    if (Math.abs(tx - rx) > 0.06 || Math.abs(ty - ry) > 0.06) {
+      cursorRaf = requestAnimationFrame(frame);
+    } else {
+      rx = tx; ry = ty;
+      if (ring) ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    }
+  }
+  function startCursor() {
+    if (cursor && !cursorRaf) cursorRaf = requestAnimationFrame(frame);
   }
   if (fine && !reduce) {
     root.dataset.cursor = 'on';
@@ -31,7 +42,6 @@
     doc.body.appendChild(cursor);
     dot = cursor.querySelector('.v6-cursor-dot');
     ring = cursor.querySelector('.v6-cursor-ring');
-    requestAnimationFrame(frame);
   }
 
   /* ---------------- 第三件：共享 tooltip ---------------- */
@@ -164,16 +174,24 @@
     tickRefs.forEach((t, i) => t.classList.toggle('is-now', i === nowIdx));
   }
 
-  /* ---------------- 统一指针监听 ---------------- */
+  /* ---------------- 统一指针总线订阅 ---------------- */
   let hx = 0, hy = 0, hoverEl = null;
-  doc.addEventListener('pointermove', (e) => {
-    hx = e.clientX; hy = e.clientY;
+  if (bus) bus.subscribe((p) => {
+    if (p.x === -9999) {
+      if (cursor) cursor.classList.add('is-out');
+      tipHide();
+      hoverEl = null;
+      setBracket(null);
+      return;
+    }
+    hx = p.x; hy = p.y;
     if (cursor) {
       cursor.classList.remove('is-out');
       tx = hx; ty = hy;
-      cursor.classList.toggle('is-link', !!(e.target.closest && e.target.closest(LINK_SEL)));
+      cursor.classList.toggle('is-link', !!(p.target && p.target.closest && p.target.closest(LINK_SEL)));
+      startCursor();
     }
-    const hit = e.target.closest ? e.target.closest(TIP_SEL) : null;
+    const hit = p.target && p.target.closest ? p.target.closest(TIP_SEL) : null;
     if (hit !== hoverEl) {
       tipHide();
       hoverEl = hit;
@@ -181,14 +199,14 @@
     } else if (hit && tipOn) {
       tipPlace(hx, hy); /* 跟着指针，不盖 chip */
     }
-    setBracket(e.target.closest ? e.target.closest('.v5-timeline-body h3') : null);
+    setBracket(p.target && p.target.closest ? p.target.closest('.v5-timeline-body h3') : null);
     signalCheck(hx, hy);
-  }, { passive: true });
+  });
 
   doc.addEventListener('pointerdown', () => { if (cursor) cursor.classList.add('is-press'); });
   doc.addEventListener('pointerup', () => { if (cursor) cursor.classList.remove('is-press'); });
-  doc.addEventListener('pointerleave', () => { if (cursor) cursor.classList.add('is-out'); });
-  window.addEventListener('blur', () => { if (cursor) cursor.classList.add('is-out'); });
+  window.addEventListener('wheel', () => { if (tipOn) tipHide(); hoverEl = null; }, { passive: true });
+  window.addEventListener('touchmove', () => { if (tipOn) tipHide(); hoverEl = null; }, { passive: true });
 
   /* 键盘：focus 同样触发 tooltip */
   doc.addEventListener('focusin', (e) => {

@@ -1,5 +1,5 @@
 /* AI dock：右下角助手 / 流式问答 / 本地事实降级 */
-const CONTACT_TEXT = '邮箱 1322816531@qq.com ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密。GitHub 或 Gitee 仓库开 Issue 也能联系。';
+const CONTACT_TEXT = '邮箱见页脚「点击发送」 ｜ QQ 1322816531 ｜ GitHub github.com/Sun-1025 ｜ Gitee gitee.com/SunZHAO1025 ｜ 微信 暂密。GitHub 或 Gitee 仓库开 Issue 也能联系。';
 const CONTACT_LOCAL_RE = /联系|邮箱|邮件|QQ|微信|github|gitee|issue|合作|找我|实习|工作|招聘|岗位|入职|offer/i;
 
 const FALLBACKS = [
@@ -64,7 +64,12 @@ const LOGO_SVG = `<svg viewBox="0 0 56 56" aria-hidden="true">
 </svg>`;
 
 function makeDock(contacts, facts, quick) {
-  const contactLine = contacts.map((c) => `${escapeHtml(c.label)} ${escapeHtml(c.value)}`).join(' ｜ ');
+  const contactLine = contacts.map((c) => {
+    const label = String(c.label || '');
+    const value = String(c.value || '');
+    const masked = label.includes('邮箱') || value.includes('@');
+    return `${escapeHtml(label)} ${masked ? '见页脚 · 点击发送' : escapeHtml(value)}`;
+  }).join(' ｜ ');
   const quickItems = quick.length ? quick : ['你在做什么项目', '会哪些技术', '能实习吗'];
 
   const dock = document.createElement('div');

@@ -123,7 +123,7 @@ $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{
     tree = $entries
 }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: 重建静态站 —— 可视化 CMS 数据、私密过滤、内容占位'
+    message = 'feat: v6 UI/UX 三合一（DotField / 回到顶部 / Tooltip-Focus-Glare）'
     tree = $tree.sha
     parents = @($ref.object.sha)
 }
