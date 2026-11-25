@@ -138,7 +138,10 @@ async function main() {
   // 1. 页面与资源
   copy(path.join(PUBLIC, 'index.html'), path.join(OUT, 'index.html'));
   const exportedIndex = path.join(OUT, 'index.html');
-  const exportedHtml = fs.readFileSync(exportedIndex, 'utf8').replace('<html lang="zh-CN"', '<html lang="zh-CN" data-static="1"');
+  // 顶部「管理员登录」在静态站保留，指向本机后台（线上无 Node，相对 /admin 会 404）
+  const exportedHtml = fs.readFileSync(exportedIndex, 'utf8')
+    .replace('<html lang="zh-CN"', '<html lang="zh-CN" data-static="1"')
+    .replace('class="admin-entry" href="/admin"', 'class="admin-entry" href="http://localhost:8080/admin"');
   fs.writeFileSync(exportedIndex, exportedHtml, 'utf8');
   copy(path.join(PUBLIC, 'assets'), path.join(OUT, 'assets'));
   copy(path.join(PUBLIC, 'tools'), path.join(OUT, 'tools'));

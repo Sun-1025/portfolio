@@ -148,7 +148,10 @@ function renderNav() {
     return `<a href="${href}" data-route="${esc(item.target)}">${esc(item.label)}</a>`;
   }).join('');
   const admin = document.querySelector('.admin-entry');
-  if (admin && state.source === 'static') admin.style.display = 'none';
+  if (admin && state.source === 'static') {
+    admin.title = '管理员登录（打开本机后台）';
+    admin.setAttribute('aria-label', '管理员登录（打开本机后台）');
+  }
 }
 
 function updateNavActive() {

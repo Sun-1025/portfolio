@@ -1095,7 +1095,6 @@ html { scroll-behavior: auto; }
 html[data-theme="light"] .admin-entry:hover { background: rgba(255, 255, 255, 0.6); }
 .admin-entry:active { transform: scale(0.98); }
 .admin-entry svg { flex: 0 0 auto; opacity: 0.9; }
-html[data-static="1"] .admin-entry { display: none; }
 
 .v5-backbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin-bottom: 18px; }
 .v5-backbar .v5-back { margin-bottom: 0; }
