@@ -76,6 +76,8 @@ Get-Content dist/CNAME
 powershell -ExecutionPolicy Bypass -File sync\deploy-v6-pages.ps1
 ```
 
+> 当前 GitHub 账号下 `Sun-1025/Sun-1025.github.io` 必须保持 **public**，并在仓库 Settings → Pages 中启用 `main` 分支根目录；private 状态下 Pages 不会发布，访问自定义域名会返回 “Site not found”。本次仓库整理发现它被设为 private 且 Pages 关闭，已恢复为 public 并重新启用 Pages。
+
 脚本做三件事：
 
 1. 读取本机 Windows 凭据中的 GitHub token，不把 token 写进仓库。
