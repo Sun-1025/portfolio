@@ -1569,7 +1569,7 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .md-preview h3 { font-size: 20px; }
 
 .converter-app {
-  grid-template-columns: 310px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
 }
 

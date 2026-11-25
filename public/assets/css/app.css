@@ -1626,7 +1626,7 @@ button { color: inherit; }
 
 .converter-app {
   display: grid;
-  grid-template-columns: 292px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
 }
@@ -2038,7 +2038,7 @@ a.foot-contact-item:hover { border-color: var(--accent); color: var(--accent); }
   bottom: 9px;
   z-index: 1;
   display: block;
-  width: 240px;
+  width: max-content;
   max-width: 240px;
   padding: 9px 12px 10px;
   border: 0.5px solid var(--glass-edge-strong);
@@ -2075,14 +2075,6 @@ a.foot-contact-item:hover { border-color: var(--accent); color: var(--accent); }
 .ai-fab-bubble b {
   color: var(--accent);
   font-weight: 600;
-}
-
-.ai-fab-bubble em {
-  color: var(--ink);
-  font-style: normal;
-  text-decoration: underline wavy var(--accent-2);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
 }
 
 .ai-dock.is-open .ai-fab-bubble {
@@ -2386,7 +2378,7 @@ a.foot-contact-item:hover { border-color: var(--accent); color: var(--accent); }
   .conv-empty { margin-left: 14px; margin-right: 14px; }
   .conv-footnote { padding: 11px 14px; }
   .ai-dock { right: 14px; bottom: 14px; }
-  .ai-fab-bubble { right: 60px; width: calc(100vw - 100px); max-width: 240px; padding: 8px 10px 9px; font-size: 11px; }
+  .ai-fab-bubble { right: 60px; width: max-content; max-width: calc(100vw - 100px); padding: 8px 10px 9px; font-size: 11px; }
   .ai-fab { width: 50px; height: 50px; min-width: 50px; padding: 0; border-radius: 50%; }
   .ai-panel {
     position: fixed;
