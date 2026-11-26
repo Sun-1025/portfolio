@@ -288,7 +288,6 @@ export function mountThreads() {
   probe.width = 1;
   probe.height = 1;
   const probeContext = probe.getContext('2d', { willReadFrequently: true });
-  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const finePointer = window.PointerBus
     ? window.PointerBus.fine
     : (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? true);
@@ -297,7 +296,8 @@ export function mountThreads() {
   const settings = { ...BASE_SETTINGS };
   settings.enableMouseInteraction = !mobile && settings.enableMouseInteraction;
   settings.lineCount = mobile ? 48 : settings.lineCount;
-  settings.paused = reduceMotion;
+  // Force playback on every device.
+  settings.paused = false;
   let renderDim = mobile ? 1280 : MAX_RENDER_DIM;
   let fpsCap = mobile ? 33 : 0;
 
@@ -517,7 +517,7 @@ export function mountThreads() {
     const s = settings;
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
     last = now;
-    const moving = !s.paused && !reduceMotion;
+    const moving = !s.paused;
     if (moving) state.time += dt * s.speed;
 
     const followRate = state.returning ? 1 / 0.26 : 2.2;
