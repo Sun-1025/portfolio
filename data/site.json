@@ -459,7 +459,7 @@
           }
         ],
         "result": "沉淀了一套可扩展的在线工具模块架构：能够在浏览器本地完成、不涉及隐私上传的需求优先落地；暂时不具备稳定处理能力的场景会明确标注边界，后续再逐步补齐。",
-        "cover": "/uploads/1795700263652-cc79f9f2--2026-11-26-213733.png",
+        "cover": "/assets/covers/case-tools-workbench.webp",
         "status": "published",
         "visible": true,
         "order": 1,
@@ -503,7 +503,7 @@
           }
         ],
         "result": "一条从声音采集到可视化提醒的完整链路已经跑通；项目仍在持续完善，重点补齐误报控制、弱网恢复和异常声音判断能力。",
-        "cover": "/assets/covers/voice.svg",
+        "cover": "/assets/covers/case-voice-wave.webp",
         "status": "published",
         "visible": true,
         "order": 2,
@@ -552,7 +552,7 @@
           }
         ],
         "result": "一套可编译运行的 C/C++ 图书管理命令行系统，配合 SQL Server 完成图书信息与借阅状态管理，基础增删查改、借阅和归还流程已跑通。",
-        "cover": "/uploads/1795702504203-233dd0a6--2026-11-26-221446.png",
+        "cover": "/assets/covers/case-lib-book-data.webp",
         "status": "published",
         "visible": true,
         "order": 3,
