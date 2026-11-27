@@ -370,7 +370,13 @@
         "tags": [
           "HTML5、CSS3、JavaScript、JSON 数据驱动、响应式设计、GitHub Pages、Gitee Pages、自定义域名、内容管理后台"
         ],
-        "images": [],
+        "images": [
+          {
+            "src": "/uploads/1795699336397-bd2a00bf--2026-11-26-211250.png",
+            "alt": "个人简介及作品集站点旧版封面",
+            "caption": "旧版封面：作品集站点最初的主视觉"
+          }
+        ],
         "links": [
           {
             "text": "查看源码（GitHub）",
