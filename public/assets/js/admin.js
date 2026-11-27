@@ -25,6 +25,11 @@ const state = {
   sessionTimer: null,
 };
 
+const BRAND_MARK = `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+  <path d="M34.5 13H17.8C14.6 13 12 15.4 12 18.4s2.6 5.4 5.8 5.4h12.4c3.2 0 5.8 2.4 5.8 5.4s-2.6 5.4-5.8 5.4H18" stroke="#ddeaf4" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="37.8" cy="10.8" r="2.5" fill="#a9c2d6"/>
+</svg>`;
+
 const STATUS_LABEL = {
   public: '公开',
   private: '私密',
@@ -303,7 +308,10 @@ function renderLogin(msg = '') {
   document.body.innerHTML = `
   <main class="ad-login">
     <div class="ad-login-card">
-      <p class="ad-login-kicker">SZH / ADMIN</p>
+      <div class="ad-login-brand">
+        <span class="ad-brand-mark" aria-hidden="true">${BRAND_MARK}</span>
+        <span class="ad-login-kicker">SZH / ADMIN</span>
+      </div>
       <h1>内容后台</h1>
       <p class="ad-login-sub">登录后可以看到网站的每一条内容，改完即时生效。</p>
       <form id="loginForm" autocomplete="on">
@@ -424,7 +432,10 @@ function renderShell() {
 
   document.body.innerHTML = `
   <header class="ad-top">
-    <div class="ad-brand"><b>SZH</b><span>/ ADMIN</span></div>
+    <div class="ad-brand">
+      <span class="ad-brand-mark" aria-hidden="true">${BRAND_MARK}</span>
+      <b>SZH</b><span>/ ADMIN</span>
+    </div>
     <div class="ad-top-mid"><span id="saveState" class="ad-save-state">已同步</span><span class="ad-session">会话 <b id="sessionLeft">—</b></span></div>
     <div class="ad-top-actions">
       <button class="ad-btn ad-btn--ghost" data-act="publish">发布上线</button>

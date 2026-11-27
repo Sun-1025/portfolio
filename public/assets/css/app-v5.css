@@ -167,6 +167,9 @@ html[data-theme="light"] .brand-mark {
   box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.8);
 }
 .brand-mark::after { display: none; }
+.brand-mark-svg { width: 70%; height: 70%; display: block; overflow: visible; }
+.brand-mark-node { fill: var(--accent); }
+html[data-theme="light"] .brand-mark-node { fill: #5f7d93; }
 .brand-text { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
 .brand-text small {
   margin-top: 3px;

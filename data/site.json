@@ -374,7 +374,7 @@
           {
             "src": "/uploads/1795699336397-bd2a00bf--2026-11-26-211250.png",
             "alt": "个人简介及作品集站点旧版封面",
-            "caption": "旧版封面：作品集站点最初的主视觉"
+            "caption": "作品集站点最初的主视觉"
           }
         ],
         "links": [
@@ -414,7 +414,7 @@
         "status": "published",
         "visible": true,
         "order": 0,
-        "updatedAt": "2026-11-27T05:45:32.995Z"
+        "updatedAt": "2026-11-27T11:43:01.359Z"
       },
       {
         "id": "case-tools",
@@ -433,7 +433,7 @@
           {
             "src": "/uploads/1795700263652-cc79f9f2--2026-11-26-213733.png",
             "alt": "在线工具箱旧版封面",
-            "caption": "旧版封面：工具箱最初的主视觉"
+            "caption": "工具箱最初的主视觉"
           }
         ],
         "links": [
@@ -469,7 +469,7 @@
         "status": "published",
         "visible": true,
         "order": 1,
-        "updatedAt": "2026-11-26T13:37:55.203Z"
+        "updatedAt": "2026-11-27T11:43:07.037Z"
       },
       {
         "id": "case-voice",
@@ -488,7 +488,7 @@
           {
             "src": "/assets/covers/voice.svg",
             "alt": "家用语音监测系统旧版封面",
-            "caption": "旧版封面：语音监测最初的主视觉"
+            "caption": "语音监测最初的主视觉"
           }
         ],
         "links": [],
@@ -519,7 +519,7 @@
         "status": "published",
         "visible": true,
         "order": 2,
-        "updatedAt": "2026-11-26T14:01:17.622Z"
+        "updatedAt": "2026-11-27T11:43:16.173Z"
       },
       {
         "id": "case-lib",
@@ -538,7 +538,7 @@
           {
             "src": "/uploads/1795702504203-233dd0a6--2026-11-26-221446.png",
             "alt": "C/C++ 图书管理系统旧版封面",
-            "caption": "旧版封面：图书管理系统最初的主视觉"
+            "caption": "图书管理系统最初的主视觉"
           }
         ],
         "links": [
@@ -574,7 +574,7 @@
         "status": "published",
         "visible": true,
         "order": 3,
-        "updatedAt": "2026-11-26T14:15:08.329Z"
+        "updatedAt": "2026-11-27T11:43:23.280Z"
       },
       {
         "id": "case-physics",
