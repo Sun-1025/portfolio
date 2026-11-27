@@ -869,7 +869,9 @@ html[data-theme="light"] .v5-project-card { background: var(--glass-tint); }
 .v5-detail-images figcaption { padding: 9px 11px 11px; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .v5-result { margin-top: 22px; padding-top: 20px; border-top: 0.5px solid var(--line); }
 .v5-result p { margin: 0; color: var(--ink-2); font-size: 16px; line-height: 1.7; }
-/* 正文段落：首行缩进两个汉字。标题区、按钮、卡片摘要、表单和页脚不缩进。 */
+/* 正文段落：首行缩进两个汉字。标题不缩进，标题下的导语和正文段落缩进。 */
+.v5-intro,
+.v5-page-head > p:not([class]),
 .v5-about-main p,
 .v5-ability p,
 .v5-intern-card p,
