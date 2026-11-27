@@ -23,7 +23,7 @@ const FIELDS = {
   contact:  ['label', 'value', 'url', 'visible', 'order'],
   campus:   ['title', 'text', 'image', 'alt', 'caption', 'visible', 'order'],
   case:     ['title', 'kind', 'category', 'number', 'org', 'period', 'role', 'summary', 'tags', 'images', 'links', 'sections', 'result', 'cover', 'visible', 'order'],
-  interest: ['title', 'lead', 'ratio', 'cover', 'images', 'visible', 'order'],
+  interest: ['title', 'lead', 'intro', 'parent', 'ratio', 'cover', 'images', 'visible', 'order'],
   tool:     ['name', 'desc', 'category', 'module', 'icon', 'enabled', 'featured', 'problem', 'prereq', 'visible', 'order'],
   notice:   ['title', 'text', 'time', 'visible', 'order'],
 };
@@ -32,7 +32,7 @@ const SINGLETONS = new Set(['site', 'hero', 'about', 'ai', 'settings']);
 
 const MAX_LEN = {
   title: 80, label: 80, name: 80, no: 8,
-  lead: 160, desc: 160, summary: 160, intro: 160, tagline: 160, alt: 160, caption: 200, period: 80, role: 80, org: 120,
+  lead: 160, desc: 160, summary: 160, intro: 20000, tagline: 160, alt: 160, caption: 200, period: 80, role: 80, org: 120,
   text: 20000, result: 20000, problem: 20000, description: 20000, paragraph: 20000,
   url: 300, href: 300, value: 200,
 };

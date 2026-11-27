@@ -1,7 +1,8 @@
 param(
   [string] $Owner = 'Sun-1025',
   [string] $Repo = 'portfolio',
-  [string] $Branch = 'main'
+  [string] $Branch = 'main',
+  [string] $Message = 'feat: 兴趣相册合并为旅行，全站正文首行缩进'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -153,7 +154,7 @@ foreach ($rel in $paths) {
 }
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
-    message = 'feat: T1 M1 PDF ↔ Word tools; docs and build notes'
+    message = $Message
     tree = $tree.sha
     parents = @($ref.object.sha)
 }

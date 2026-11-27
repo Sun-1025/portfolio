@@ -277,6 +277,48 @@ function timelineHtml(items = []) {
   }).join('')}</div>`;
 }
 
+function interestChildren(item) {
+  return byOrder((state.data.interests || []).filter((x) => x.parent === item.id));
+}
+
+function interestPhotoCount(item) {
+  const own = (item.images || []).length;
+  return own + interestChildren(item).reduce((sum, child) => sum + (child.images || []).length, 0);
+}
+
+function inlineText(value) {
+  return esc(value).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+/* 后台长介绍使用空行分段；支持少量标题和 **加粗**，其余内容一律转义。 */
+function richTextHtml(value) {
+  return String(value || '').trim().split(/\n{2,}/).map((block) => {
+    const text = block.trim();
+    if (!text) return '';
+    if (/^###\s+/.test(text)) return `<h3>${inlineText(text.replace(/^###\s+/, ''))}</h3>`;
+    if (/^##\s+/.test(text)) return `<h2>${inlineText(text.replace(/^##\s+/, ''))}</h2>`;
+    return `<p>${inlineText(text).replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+}
+
+function travelTreeHtml(item, children) {
+  const total = children.reduce((sum, child) => sum + (child.images || []).length, 0);
+  const nodes = children.map((child, i) => `<a class="v5-travel-node reveal" href="#/interest/${esc(child.id)}" aria-label="打开${esc(child.title)}相册">
+      <span class="v5-travel-node-no">${String(i + 1).padStart(2, '0')}</span>
+      <span class="v5-travel-node-copy"><strong>${esc(child.title)}</strong><small>${esc(child.lead || '')}</small><em>${(child.images || []).length} 张照片</em></span>
+      <span class="v5-travel-node-cover"><img src="${safeUrl(child.cover)}" alt="${esc(child.title)}相册封面" loading="lazy" decoding="async"></span>
+      <span class="v5-travel-node-arrow">${ARROW}</span>
+    </a>`).join('');
+  return `<div class="v5-travel-tree" role="group" aria-label="${esc(item.title)}地点分支">
+    <div class="v5-travel-root">
+      <span class="v5-travel-root-kicker">TRAVEL / PLACES</span>
+      <strong>${esc(item.title)}</strong>
+      <span>${children.length} 个地点 · ${total} 张照片</span>
+    </div>
+    <div class="v5-travel-branches">${nodes}</div>
+  </div>`;
+}
+
 function interestCard(item, index = 0) {
   if (isLocked(item)) {
     return `<article class="v5-interest-card v5-locked reveal">
@@ -287,7 +329,7 @@ function interestCard(item, index = 0) {
       </div>
     </article>`;
   }
-  const count = (item.images || []).length;
+  const count = interestPhotoCount(item);
   const first = (item.images || [])[0];
   const alt = (first && first.alt) || `${item.title || '兴趣'}照片`;
   return `<a class="v5-interest-card reveal v5-focus-item" href="#/interest/${esc(item.id)}">
@@ -315,7 +357,7 @@ function renderHome() {
   const cases = (state.data.work && state.data.work.cases) || [];
   const selected = (home.selectedIds || []).map((id) => cases.find((c) => c.id === id)).filter(Boolean);
   const practice = cases.find((c) => c.id === 'case-physics');
-  const interests = state.data.interests || [];
+  const interests = byOrder(state.data.interests || []).filter((item) => !item.parent);
   const timeline = home.timeline || [];
 
   const profile = (hero.profile || []).map((row) => `<div class="v5-profile-row"><span>${esc(row.k)}</span><b>${esc(row.v)}</b></div>`).join('');
@@ -373,8 +415,8 @@ function renderHome() {
   </section>
 
   <section class="v5-section wrap">
-    ${sectionHead('04 / INTERESTS', '离开工位以后', '骑行、羽毛球、登山，还有三座城市。照片比文字多。')}
-    <div class="v5-interest-grid v5-focus-group">${interests.map(interestCard).join('')}</div>
+    ${sectionHead('04 / INTERESTS', '离开工位以后', '骑行、羽毛球、登山，还有收在“旅行”里的三座城市。点开是一段记录。')}
+    <div class="v5-interest-grid${interests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group">${interests.map(interestCard).join('')}</div>
     <a class="v5-more" href="#/interest">查看全部兴趣照片 ${ARROW}</a>
   </section>
 
@@ -470,42 +512,58 @@ function renderExperience() {
 
 /* ---------------- 兴趣 ---------------- */
 function renderInterest(id) {
-  const interests = state.data.interests || [];
+  const allInterests = state.data.interests || [];
+  const indexInterests = byOrder(allInterests).filter((item) => !item.parent);
   if (id) {
-    const item = interests.find((x) => x.id === id);
+    const item = allInterests.find((x) => x.id === id);
     if (!item) return `<section class="v5-page-head wrap">${backBar({ href: '#/interest', label: '返回兴趣' })}<h1>这个相册不存在</h1></section>`;
+    const parent = item.parent ? allInterests.find((x) => x.id === item.parent) : null;
+    const backSub = parent ? { href: `#/interest/${parent.id}`, label: `返回${parent.title}` } : { href: '#/interest', label: '返回兴趣' };
+    const kicker = parent ? `04 / TRAVEL · ${parent.title}` : '04 / INTEREST';
     if (isLocked(item)) {
       return `
       <section class="v5-page-head wrap">
-        ${backBar({ href: '#/interest', label: '返回兴趣' })}
-        <span class="v5-kicker">04 / INTEREST</span>
+        ${backBar(backSub)}
+        <span class="v5-kicker">${esc(kicker)}</span>
         <h1>${esc(item.title)}</h1>
         <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
       </section>`;
     }
-    return `
-    <section class="v5-page-head wrap">
-      ${backBar({ href: '#/interest', label: '返回兴趣' })}
-      <span class="v5-kicker">04 / INTEREST</span>
-      <h1>${esc(item.title)}</h1>
-      <p>${esc(item.lead || '')}</p>
-    </section>
-    <section class="v5-section wrap">
+    const children = interestChildren(item);
+    const story = item.intro
+      ? `<section class="v5-section wrap v5-interest-story"><div class="v5-interest-intro">${richTextHtml(item.intro)}</div></section>`
+      : '';
+    const tree = children.length
+      ? `<section class="v5-section wrap v5-travel-section">${travelTreeHtml(item, children)}</section>`
+      : '';
+    const gallery = (item.images || []).length
+      ? `<section class="v5-section wrap">
       <div class="v5-gallery">${(item.images || []).map((img, i) => `<figure class="v5-gallery-item reveal${i === 0 ? ' is-lead' : ''}">
         <a class="v5-gallery-media" href="${safeUrl(img.src)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(img.alt || item.title || '')}"><img src="${safeUrl(img.src)}" alt="${esc(img.alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
         <figcaption>${esc(img.caption || '')}</figcaption>
       </figure>`).join('')}</div>
-    </section>`;
+    </section>`
+      : '';
+    return `
+    <section class="v5-page-head wrap">
+      ${backBar(backSub)}
+      <span class="v5-kicker">${esc(kicker)}</span>
+      <h1>${esc(item.title)}</h1>
+      <p>${esc(item.lead || '')}</p>
+    </section>
+    ${story}
+    ${tree}
+    ${gallery}`;
   }
   return `
   <section class="v5-page-head wrap">
     ${backBar()}
     <span class="v5-kicker">04 / INTEREST</span>
-    <h1>照片比文字多</h1>
-    <p>骑行、羽毛球、登山，还有北京、淄博、济南。每个主题点开是一个小相册。</p>
+    <h1>玩过的，去过的</h1>
+    <p>骑行、羽毛球、登山，还有一个收着北京、淄博、济南的“旅行”。点开每一项，先看一段记录，再看照片。</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-interest-grid v5-interest-grid--page v5-focus-group">${interests.map(interestCard).join('')}</div>
+    <div class="v5-interest-grid v5-interest-grid--page${indexInterests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group">${indexInterests.map(interestCard).join('')}</div>
   </section>`;
 }
 

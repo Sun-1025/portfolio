@@ -58,6 +58,8 @@ const TYPES = [
     id: 'interest', label: '兴趣相册', path: ['interests'], single: false, icon: '◧',
     fields: [
       F('title', '标题'), F('lead', '一句介绍', 'textarea', { md: true }),
+      F('intro', '详细介绍（长文）', 'markdown', { hint: '空行分段；可用 ## 小标题、**加粗**' }),
+      F('parent', '所属合集 ID', 'text', { hint: '例如 travel；填了就不会单独出现在兴趣首页' }),
       F('ratio', '首图比例', 'text', { hint: '例如 4/3，可留空' }),
       F('cover', '封面', 'image'),
       F('images', '相册图片', 'images'),
