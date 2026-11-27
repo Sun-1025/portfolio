@@ -91,8 +91,14 @@
 <script type="module" src="/assets/js/ui-fx.js"></script>
 <script>
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      location.reload();
+    });
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('/sw.js').catch(function () {});
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function () {});
     });
   }
 </script>

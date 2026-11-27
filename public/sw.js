@@ -1,6 +1,6 @@
 /* Offline shell for the local-only tools.
    Version bump is required whenever the cached tool assets change. */
-const CACHE = 'szh-t1-m1-v15';
+const CACHE = 'szh-t1-m1-v16';
 const CORE = [
   '/',
   '/index.html',
@@ -77,6 +77,20 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreSearch: true });
+
+    // 站点数据走网络优先：后台发布后刷新页面即可看到新内容。
+    // 离线时仍回退到上次缓存的 site.json。
+    if (url.pathname === '/data/site.json') {
+      try {
+        const res = await fetch(req, { cache: 'no-store' });
+        if (res.ok) await cache.put(req, res.clone());
+        return res;
+      } catch (err) {
+        if (cached) return cached;
+        throw err;
+      }
+    }
+
     if (cached) {
       fetch(req).then((res) => {
         if (res.ok) cache.put(req, res);

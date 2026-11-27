@@ -1419,7 +1419,9 @@ async function pollPublish() {
     state.publish = Object.assign(state.publish, s);
     const stepEl = $('#pubStep');
     const logEl = $('#pubLog');
-    if (stepEl) stepEl.textContent = s.running ? `${s.step === 'build' ? '正在构建' : '正在推送'}…` : (s.ok ? '发布完成' : s.step === 'error' ? '发布失败' : '已结束');
+    if (stepEl) stepEl.textContent = s.running
+      ? ({ css: '正在编译样式', export: '正在导出静态站', deploy: '正在推送 GitHub Pages' }[s.step] || '正在发布') + '…'
+      : (s.ok ? '发布完成' : s.step === 'error' ? '发布失败' : '已结束');
     if (logEl) { logEl.textContent = (s.log || []).slice(-20).join('\n'); logEl.scrollTop = logEl.scrollHeight; }
     if (s.running) state.publish.timer = setTimeout(pollPublish, 2000);
     else toast(s.ok ? '发布成功，线上已更新' : '发布失败，请看日志', s.ok ? 'ok' : 'err');
