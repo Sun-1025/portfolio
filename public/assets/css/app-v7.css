@@ -887,6 +887,25 @@ body.is-photo-viewer-open { overflow: hidden; }
   background: transparent;
 }
 
+/* 项目图集：去掉按钮默认的 2px 边框和内边距，只留圆角图片；图注底色保留 */
+.v5-detail-img {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: inherit;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.v5-detail-img .v5-img-frame {
+  border-radius: inherit;
+  overflow: hidden;
+}
+
 /* 图片未到之前不再显示纯黑块 */
 .v5-img-frame {
   background: var(--surface-2);
