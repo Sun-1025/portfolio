@@ -964,6 +964,7 @@ function toolIcon(id) {
   if (id === 'markdown') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="4" y="8" width="24" height="16" rx="4" ${common}/><path d="M9 20V13m0 7 3-4 3 4M19 13v7m0-7 3 3 3-3" ${common}/></svg>`;
   if (id === 'wordcount') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M8 7h16M8 13h16M8 19h10M8 25h7" ${common}/></svg>`;
   if (id === 'unit') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="4" y="11" width="24" height="10" rx="3" ${common}/><path d="M9 11v4M14 11v6M19 11v4M24 11v6" ${common}/></svg>`;
+  if (id === 'currency') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="11" ${common}/><path d="M12 10l4 7 4-7M12 21h8M12 24h8" ${common}/></svg>`;
   if (id === 'pdf-to-word') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M6 6h12l4 4v16H6z" ${common}/><path d="M18 6v4h4" ${common}/><path d="M11 19h9m0 0-3-3m3 3-3 3" ${common}/></svg>`;
   if (id === 'word-to-pdf') return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="7" y="13" width="18" height="10" rx="3" ${common}/><path d="M10 13V5h12v8M10 19h12v7H10z" ${common}/></svg>`;
   return `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="6" y="8" width="20" height="18" rx="4" ${common}/><path d="M6 14h20M12 5v6M20 5v6" ${common}/></svg>`;
@@ -1011,18 +1012,18 @@ function renderTools() {
   const tools = state.data.tools || {};
   const list = toolModules();
   const featured = list.find((t) => t.featured || t.id === 'converter') || list[0];
-  const utilities = list.filter((t) => t !== featured).slice(0, 5);
+  const utilities = list.filter((t) => t !== featured).slice(0, 6);
   const cards = utilities.map(toolCard).join('');
   const count = (featured ? 1 : 0) + utilities.length;
 
   return `
-  <section class="v5-page-head wrap">
+  <section class="v5-page-head wrap v5-tools-head">
     ${backBar()}
     <span class="v5-kicker">${esc(tx('tools.kicker', '05 / TOOLS'))}</span>
     <h1>${esc(tools.title || tx('tools.featuredTitle', '在线工具箱'))}</h1>
     <p>${esc(tools.intro || '')}</p>
   </section>
-  <section class="v5-section wrap">
+  <section class="v5-section wrap v5-tools-section">
     <div class="v5-tools-status"><span><i></i>${esc(tx('tools.statusReady', 'LOCAL ENGINE / READY'))}</span><span><span class="v5-count" data-count="${count}" data-tip="${esc(tx('tools.statusTip', '自建在线工具'))}" tabindex="0">${count}</span> ${esc(tx('tools.unit', '个'))}${esc(tx('tools.unitSuffix', '工具'))}</span><span>${esc(tx('tools.statusLocal', 'NO SERVER / NO UPLOAD'))}</span></div>
     ${toolsWorkbench(featured)}
     <div class="v5-tools-sub">${sectionHead(tx('tools.utilitiesKicker', '05.1 / UTILITIES'), tx('tools.utilitiesTitle', '常用的几个'), tx('tools.utilitiesLead', ''))}</div>

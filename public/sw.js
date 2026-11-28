@@ -1,6 +1,6 @@
 /* Offline shell for the local-only tools.
    Version bump is required whenever the cached tool assets change. */
-const CACHE = 'szh-t1-m1-v41';
+const CACHE = 'szh-t1-m1-v42';
 const CORE = [
   '/',
   '/index.html',
@@ -10,10 +10,10 @@ const CORE = [
   '/assets/css/app-v4.css?v=20261128-5',
   '/assets/css/app-v5.css?v=20261128-5',
   '/assets/css/app-v6.css?v=20261128-5',
-  '/assets/css/app-v7.css?v=20261128-12',
+  '/assets/css/app-v7.css?v=20261128-13',
   '/assets/favicon.svg',
   '/assets/js/app.js?v=20261128-5',
-  '/assets/js/app-20261128-9.js',
+  '/assets/js/app-20261128-10.js',
   '/assets/js/site-text.js',
   '/assets/js/ai-dock.js',
   '/assets/js/backtop.js',
@@ -24,6 +24,7 @@ const CORE = [
   '/data/site.json',
   '/tools/convert-core.js',
   '/tools/converter.js',
+  '/tools/currency.js',
   '/tools/data-core.js',
   '/tools/date.js',
   '/tools/docs-core.js',
