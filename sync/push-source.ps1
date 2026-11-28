@@ -142,18 +142,21 @@ foreach ($rel in $paths) {
     $bytes = [IO.File]::ReadAllBytes($file)
     $localSha = Get-GitBlobSha -Bytes $bytes
     if ($existing.ContainsKey($rel) -and $existing[$rel] -eq $localSha) {
-        $blobSha = $localSha
         Write-Output ("  = {0} {1} B (unchanged)" -f $rel, $bytes.Length)
-    } else {
-        $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
-            content = [Convert]::ToBase64String($bytes)
-            encoding = 'base64'
-        }).sha
-        Write-Output ("  + {0} {1} B {2}" -f $rel, $bytes.Length, $blobSha.Substring(0, 8))
+        continue
     }
+    $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
+        content = [Convert]::ToBase64String($bytes)
+        encoding = 'base64'
+    }).sha
+    Write-Output ("  + {0} {1} B {2}" -f $rel, $bytes.Length, $blobSha.Substring(0, 8))
     $entries += @{ path = $rel; mode = '100644'; type = 'blob'; sha = $blobSha }
 }
-$tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{ tree = $entries }
+# 以 base_tree 增量合并，避免整棵树超过 GitHub 单次请求上限。
+$tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{
+    base_tree = $commit.tree.sha
+    tree = $entries
+}
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
     message = $Message
     tree = $tree.sha

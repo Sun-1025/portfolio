@@ -992,18 +992,19 @@ function toolCard(t) {
   </a>`;
 }
 
-function featuredToolCard(t) {
+function toolsWorkbench(t) {
   if (!t) return '';
-  return `<a class="v5-feature-tool reveal" href="#/tools/${esc(t.id)}" data-tool-id="${esc(t.id)}" aria-label="${esc(tx('tools.featuredAction', '立即使用'))}：${esc(t.name)}">
-    <span class="v5-feature-tool-icon">${toolIcon(t.id)}</span>
-    <span class="v5-feature-tool-copy">
-      <span class="v5-kicker">${esc(tx('tools.featuredKicker', 'CORE / CONVERTER'))}</span>
-      <h2>${esc(t.name || tx('tools.featuredTitle', '文件转换台'))}</h2>
-      <p>${esc(t.desc || t.problem || tx('tools.featuredLead', ''))}</p>
-      <span class="v5-feature-tool-action">${esc(tx('tools.featuredAction', '立即使用'))} ${ARROW}</span>
-    </span>
-    <span class="v5-feature-tool-glow" aria-hidden="true"></span>
-  </a>`;
+  return `<section class="v5-tools-workbench" aria-labelledby="toolsWorkbenchTitle">
+    <div class="v5-tools-workbench-head">
+      <div>
+        <span class="v5-kicker">${esc(tx('tools.featuredKicker', 'CORE / CONVERTER'))}</span>
+        <h2 id="toolsWorkbenchTitle">${esc(t.name || tx('tools.featuredTitle', '文件转换台'))}</h2>
+      </div>
+      <span class="v5-tools-workbench-meta">${esc(tx('tools.workbenchMeta', '本机处理 · 不上传 · 直接下载'))}</span>
+    </div>
+    <div class="converter-mount" id="toolsWorkbench"><p class="tool-loading">${esc(tx('tools.loadingModule', '转换台加载中…'))}</p></div>
+    <a class="v5-tools-workbench-more" href="#/tools/converter">${esc(tx('tools.fullWorkbench', '完整转换台 · 格式矩阵 / 质量设置 / 历史记录'))} ${ARROW}</a>
+  </section>`;
 }
 
 function renderTools() {
@@ -1023,7 +1024,7 @@ function renderTools() {
   </section>
   <section class="v5-section wrap">
     <div class="v5-tools-status"><span><i></i>${esc(tx('tools.statusReady', 'LOCAL ENGINE / READY'))}</span><span><span class="v5-count" data-count="${count}" data-tip="${esc(tx('tools.statusTip', '自建在线工具'))}" tabindex="0">${count}</span> ${esc(tx('tools.unit', '个'))}${esc(tx('tools.unitSuffix', '工具'))}</span><span>${esc(tx('tools.statusLocal', 'NO SERVER / NO UPLOAD'))}</span></div>
-    ${featuredToolCard(featured)}
+    ${toolsWorkbench(featured)}
     <div class="v5-tools-sub">${sectionHead(tx('tools.utilitiesKicker', '05.1 / UTILITIES'), tx('tools.utilitiesTitle', '常用的几个'), tx('tools.utilitiesLead', ''))}</div>
     <div class="v5-tool-grid v5-tool-grid--five">${cards || `<p class="v5-empty">${esc(tx('tools.empty', '工具正在整理。'))}</p>`}</div>
   </section>`;
@@ -1072,7 +1073,26 @@ async function renderTool(id) {
   return head;
 }
 
-/* ---------------- 页脚与留言 ---------------- */
+function mountToolsWorkbench(root) {
+  const mount = $('#toolsWorkbench', root);
+  if (!mount) return;
+  const featured = toolModules().find((t) => t.featured || t.id === 'converter') || toolModules()[0];
+  if (!featured) {
+    mount.innerHTML = `<p class="tool-error">${esc(tx('errors.converter', '转换台加载失败'))}</p>`;
+    return;
+  }
+  setTimeout(async () => {
+    if (!mount.isConnected) return;
+    try {
+      const mod = await import(`/tools/${featured.module}?v=${Date.now()}`);
+      if (typeof mod.render !== 'function') throw new Error(tx('errors.missingRender', '模块缺少 render 函数'));
+      mount.innerHTML = '';
+      await mod.render(mount, { toast, item: featured });
+    } catch (err) {
+      mount.innerHTML = `<p class="tool-error">${esc(tx('errors.tool', '工具加载失败'))}：${esc(err.message)}</p>`;
+    }
+  }, 0);
+}
 function renderFoot() {
   const contacts = (state.data.home && state.data.home.contacts) || [];
   const email = contacts.find((c) => (c.label || '').includes('邮箱'));
@@ -1087,7 +1107,7 @@ function renderFoot() {
   }).join('');
   const adminLink = state.source === 'api' ? `<a href="/admin">${esc(tx('footer.admin', '后台管理'))}</a>` : '';
   const avatars = (SITE_TEXT.footer.avatars || []).map((a) => `<button class="v5-avatar" type="button" data-name="${esc(a.name)}" data-role="${esc(a.role)}" data-sub="${esc(a.sub)}" aria-label="${esc(a.label)}">
-            ${imageFrame(a.image, '', { loading: 'lazy' })}
+            <img src="${safeUrl(a.image)}" alt="" loading="lazy" decoding="async">
           </button>`).join('');
   return `<div class="wrap">
     <div class="foot-kicker"><span>${esc(tx('footer.contactKicker', 'CONTACT'))}</span><span class="foot-status"><i></i>${esc(tx('footer.open', 'OPEN TO INTERNSHIP'))}</span></div>
@@ -1303,6 +1323,7 @@ async function render(scrollTop = false) {
   }
   if (state.route.name === 'tools') {
     $$('.v5-count', view).forEach((el) => countUp(el, el.dataset.count, 400));
+    if (!state.route.id) mountToolsWorkbench(view);
   }
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
