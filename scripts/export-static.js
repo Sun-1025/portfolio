@@ -144,6 +144,10 @@ async function main() {
   // 1. 页面与资源
   copy(path.join(PUBLIC, 'index.html'), path.join(OUT, 'index.html'));
   fs.copyFileSync(path.join(PUBLIC, 'sw.js'), path.join(OUT, 'sw.js'));
+  // 根目录校验文件（如微信站点管理员认证）原样带出
+  for (const name of fs.readdirSync(PUBLIC)) {
+    if (name.endsWith('.txt')) fs.copyFileSync(path.join(PUBLIC, name), path.join(OUT, name));
+  }
   const exportedIndex = path.join(OUT, 'index.html');
   // 顶部「管理员登录」在静态站保留，指向本机后台（线上无 Node，相对 /admin 会 404）
   const exportedHtml = fs.readFileSync(exportedIndex, 'utf8')
