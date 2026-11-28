@@ -853,13 +853,33 @@ body.is-photo-viewer-open { overflow: hidden; }
   opacity: 0.92;
 }
 
-/* 相册：灰色边框改为透明玻璃边缘 */
+/* 相册：去掉灰色底、玻璃边、阴影和模糊，只保留圆角与图注 */
 .v5-gallery-item {
-  background: rgba(255, 255, 255, 0.012);
-  border: 0.5px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
-  -webkit-backdrop-filter: blur(18px) saturate(130%);
-  backdrop-filter: blur(18px) saturate(130%);
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.v5-gallery-media {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: inherit;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.v5-gallery-media .v5-img-frame {
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 .v5-gallery-media,
