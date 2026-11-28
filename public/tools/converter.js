@@ -523,7 +523,7 @@ export function render(root, ctx = {}) {
         <span class="conv-drop-title">拖入文件，或点击选择</span>
         <span class="conv-drop-sub">
           <span class="conv-drop-sub-full">图片 PNG/JPG/WEBP/GIF/BMP/SVG/ICO · 数据 JSON/CSV/YAML/XML/INI/TSV/NDJSON/MD/TXT/HTML<br>音频 MP3/OGG/M4A/AAC/FLAC/WAV · PDF · Office DOCX/XLSX/XLS/ODS/PPTX · 电子书 EPUB/FB2/CBZ · 3D STL/OBJ/PLY</span>
-          <span class="conv-drop-sub-short">图片 / 数据 / 音频 / PDF / Office / 电子书 / 3D<br>常用格式全支持 · 大文件按类型限额</span>
+          <span class="conv-drop-sub-short">图片 / 数据 / 音频 / PDF / Office<br>电子书 / 3D<br>常用格式全支持 · 大文件按类型限额</span>
         </span>
         <span class="conv-drop-meta"><i></i>LOCAL ONLY · 单文件 10–80MB · 按类型限制 · 不上传服务器</span>
       </label>

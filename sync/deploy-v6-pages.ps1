@@ -95,33 +95,43 @@ function Get-GitBlobSha {
 }
 
 $entries = @()
+$localPaths = @{}
 $files = Get-ChildItem -LiteralPath $dist -Recurse -File -Force
 $existing = @{}
 foreach ($item in $baseTree.tree) { if ($item.type -eq 'blob') { $existing[$item.path] = $item.sha } }
 foreach ($file in $files) {
     $remote = $file.FullName.Substring($dist.Length + 1).Replace('\', '/')
+    $localPaths[$remote] = $true
     $bytes = [IO.File]::ReadAllBytes($file.FullName)
     $localSha = Get-GitBlobSha -Bytes $bytes
     if ($existing.ContainsKey($remote) -and $existing[$remote] -eq $localSha) {
-        $blobSha = $localSha
         Write-Output ("  = {0} {1} B (unchanged)" -f $remote, $bytes.Length)
-    } else {
-        $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
-            content = [Convert]::ToBase64String($bytes)
-            encoding = 'base64'
-        }).sha
-        Write-Output ("  + {0} {1} B {2}" -f $remote, $bytes.Length, $blobSha.Substring(0, 8))
+        continue
     }
+    $blobSha = (Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/blobs" -Body @{
+        content = [Convert]::ToBase64String($bytes)
+        encoding = 'base64'
+    }).sha
+    Write-Output ("  + {0} {1} B {2}" -f $remote, $bytes.Length, $blobSha.Substring(0, 8))
     $entries += @{ path = $remote; mode = '100644'; type = 'blob'; sha = $blobSha }
 }
 
+# 保留 CNAME，并清掉本轮 dist 中已不存在的旧文件。
 $cname = $baseTree.tree | Where-Object { $_.path -eq 'CNAME' -and $_.type -eq 'blob' } | Select-Object -First 1
 if ($cname) {
     $entries += @{ path = 'CNAME'; mode = '100644'; type = 'blob'; sha = $cname.sha }
+    $localPaths['CNAME'] = $true
     Write-Output "  CNAME (preserved) $($cname.sha.Substring(0, 8))"
 }
+foreach ($item in $baseTree.tree) {
+    if ($item.type -ne 'blob' -or $localPaths.ContainsKey($item.path)) { continue }
+    $entries += @{ path = $item.path; mode = '100644'; type = 'blob'; sha = $null }
+    Write-Output ("  - {0} (removed)" -f $item.path)
+}
 
+# 以 base_tree 增量提交，避免整棵树超过 GitHub 单次请求上限。
 $tree = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/trees" -Body @{
+    base_tree = $baseCommit.tree.sha
     tree = $entries
 }
 $newCommit = Invoke-GH -Method Post -Uri "/repos/$Owner/$Repo/git/commits" -Body @{
