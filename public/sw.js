@@ -1,17 +1,20 @@
 /* Offline shell for the local-only tools.
    Version bump is required whenever the cached tool assets change. */
-const CACHE = 'szh-t1-m1-v16';
+const CACHE = 'szh-t1-m1-v36';
 const CORE = [
   '/',
   '/index.html',
   '/404.html',
-  '/assets/css/tailwind.css',
-  '/assets/css/app.css',
-  '/assets/css/app-v4.css',
-  '/assets/css/app-v5.css',
-  '/assets/css/app-v6.css',
+  '/assets/css/tailwind.css?v=20261128-5',
+  '/assets/css/app.css?v=20261128-5',
+  '/assets/css/app-v4.css?v=20261128-5',
+  '/assets/css/app-v5.css?v=20261128-5',
+  '/assets/css/app-v6.css?v=20261128-5',
+  '/assets/css/app-v7.css?v=20261128-9',
   '/assets/favicon.svg',
-  '/assets/js/app.js',
+  '/assets/js/app.js?v=20261128-5',
+  '/assets/js/app-20261128-7.js',
+  '/assets/js/site-text.js',
   '/assets/js/ai-dock.js',
   '/assets/js/backtop.js',
   '/assets/js/pointer-bus.js',

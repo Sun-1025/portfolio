@@ -9,6 +9,8 @@
     "dev": "node --watch server.js",
     "init": "node scripts/init-admin.js",
     "export": "node scripts/export-static.js",
+    "thumbs": "node scripts/make-thumbs.js",
+    "mediums": "node scripts/make-mediums.js",
     "css": "tailwindcss -i ./src/tailwind.css -o ./public/assets/css/tailwind.css --minify",
     "build": "npm run css && npm run export"
   },

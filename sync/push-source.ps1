@@ -67,6 +67,7 @@ $paths = @(
     'README.md', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'server.js', '.env.example', '.gitignore',
     'data/site.json',
     'scripts/export-static.js', 'scripts/init-admin.js', 'scripts/migrate-content.js',
+    'scripts/make-thumbs.js', 'scripts/make-mediums.js',
     'sync/deploy-v5-pages.ps1', 'sync/deploy-v6-pages.ps1', 'sync/clean-pages.ps1', 'sync/push-source.ps1'
 )
 # 只发布仓库文档目录中的当前版 ASCII 文档；旧版中文名文档不再进入远端 tree，避免出现 ???? 文件名。

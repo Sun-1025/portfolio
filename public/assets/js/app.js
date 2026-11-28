@@ -1,4 +1,5 @@
 import { initAiDock } from './ai-dock.js';
+import { SITE_TEXT } from './site-text.js';
 
 /* 前台应用：数据加载 / 路由 / 视图 / 主题 / 留言 / 工具 */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -9,6 +10,21 @@ const state = {
   route: { name: 'home', id: null },
   source: 'api',
 };
+
+/* 统一文案读取：字段在 site-text.js，模板里不再写死中文。 */
+function tx(path, fallback = '', vars) {
+  const parts = String(path || '').split('.');
+  let cur = SITE_TEXT;
+  for (const part of parts) {
+    if (!cur || typeof cur !== 'object') { cur = undefined; break; }
+    cur = cur[part];
+  }
+  let value = typeof cur === 'string' ? cur : String(fallback || '');
+  if (vars && typeof vars === 'object') {
+    value = value.replace(/\{(\w+)\}/g, (m, key) => (vars[key] == null ? m : String(vars[key])));
+  }
+  return value;
+}
 
 function esc(value) {
   return String(value == null ? '' : value)
@@ -23,6 +39,71 @@ function safeUrl(url) {
   const value = String(url || '').trim();
   if (/^(https?:|mailto:|tel:|\/|#)/i.test(value)) return esc(value);
   return '#';
+}
+
+/* 缩略图约定：/assets/... 或 /uploads/... 原图，对应 /assets/thumbs/<原路径>.webp。
+   缩略图不存在时，容器底色兜底，原图仍会正常淡入。 */
+function thumbUrl(src) {
+  const value = String(src || '').trim();
+  if (!/^\/(?:assets|uploads)\//i.test(value)) return value;
+  return `/assets/thumbs/${value.replace(/^\/+/, '')}.webp`;
+}
+
+/* 中图约定：public/assets/derived/<原路径>.webp。
+   卡片与相册优先加载 1200px 中图，原图只在照片查看器里加载。 */
+function mediumUrl(src) {
+  const value = String(src || '').trim();
+  if (!/^\/(?:assets|uploads)\//i.test(value)) return value;
+  if (!/\.(webp|jpe?g|png)$/i.test(value)) return value;
+  return `/assets/derived/${value.replace(/^\/+/, '').replace(/\.(webp|jpe?g|png)$/i, '')}.webp`;
+}
+
+function normalizePhotos(list) {
+  return (Array.isArray(list) ? list : []).map((item) => {
+    if (typeof item === 'string') return { src: item, alt: '', caption: '', date: '' };
+    return {
+      src: item && (item.src || item.url || item.image) || '',
+      alt: (item && (item.alt || item.title)) || '',
+      caption: (item && (item.caption || item.desc || item.text)) || '',
+      date: (item && (item.date || item.time)) || '',
+    };
+  }).filter((item) => item.src);
+}
+
+function photoDateText(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}.${match[2]}.${match[3]}` : raw;
+}
+
+/* 渐进加载图片：缩略图垫底，中图先到，原图只在查看器里按需加载。
+   opts.loading = eager|lazy；opts.priority = high；opts.full = 查看器原图。 */
+function imageFrame(src, alt = '', opts = {}) {
+  const full = safeUrl(src);
+  const medium = safeUrl(mediumUrl(src));
+  const display = opts.full ? full : medium;
+  const thumb = thumbUrl(src);
+  const loading = opts.loading || 'lazy';
+  const priority = opts.priority ? ` fetchpriority="${esc(opts.priority)}"` : '';
+  const hasThumb = thumb && thumb !== src;
+  return `<span class="v5-img-frame">
+    ${hasThumb ? `<img class="v5-img-thumb" src="${safeUrl(thumb)}" alt="" aria-hidden="true" loading="${esc(loading)}" decoding="async">` : ''}
+    <img class="v5-img-full v5-progressive" src="${display}" alt="${esc(alt)}" loading="${esc(loading)}" decoding="async"${priority}>
+    <span class="v5-img-spin" aria-hidden="true"></span>
+  </span>`;
+}
+
+function hydrateImages(root = document) {
+  $$('img.v5-progressive', root).forEach((img) => {
+    const mark = () => img.classList.add('is-loaded');
+    if (img.complete && img.naturalWidth) mark();
+    else img.addEventListener('load', mark, { once: true });
+    img.addEventListener('error', () => img.classList.add('is-error'), { once: true });
+  });
+  $$('img.v5-img-thumb', root).forEach((img) => {
+    img.addEventListener('error', () => img.classList.add('is-empty'), { once: true });
+  });
 }
 
 function byOrder(list) {
@@ -40,13 +121,14 @@ function toast(message) {
 
 const ARROW = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BACK_ARROW = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="4.8" y="10.2" width="14.4" height="9.4" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.35"/><path d="M8.2 10.2V7.6a3.8 3.8 0 0 1 7.6 0v2.6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><circle cx="12" cy="14.8" r="1.05" fill="currentColor"/></svg>';
 
 /* 每个子页都先给一条回首页的路，再保留原来的上下文返回。 */
 function backBar(sub) {
   const extra = sub
     ? `<a class="v5-back v5-back--sub" href="${safeUrl(sub.href)}">${esc(sub.label)}</a>`
     : '';
-  return `<div class="v5-backbar"><a class="v5-back" href="#/">${BACK_ARROW} 返回首页</a>${extra}</div>`;
+  return `<div class="v5-backbar"><a class="v5-back" href="#/">${BACK_ARROW} ${esc(tx('common.backHome', '返回首页'))}</a>${extra}</div>`;
 }
 
 /* ---------------- 动效辅助（阶段 C，原生 WAAPI，区间见 docs/design/PICK.md） ---------------- */
@@ -86,7 +168,7 @@ function applyTheme(theme) {
   const btn = $('#themeBtn');
   if (btn) {
     btn.dataset.mode = theme;
-    btn.setAttribute('aria-label', theme === 'dark' ? '切换到浅色' : '切换到深色');
+    btn.setAttribute('aria-label', theme === 'dark' ? tx('common.themeToLight', '') : tx('common.themeToDark', ''));
   }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0c0f' : '#f4f6f8');
@@ -114,7 +196,7 @@ async function loadData() {
     } catch (err) { /* 静态环境没有 API */ }
   }
   const res = await fetch('/data/site.json', { cache: 'no-store' });
-  if (!res.ok) throw new Error('无法读取站点数据');
+  if (!res.ok) throw new Error(tx('errors.loadData', ''));
   state.source = 'static';
   return res.json();
 }
@@ -149,8 +231,8 @@ function renderNav() {
   }).join('');
   const admin = document.querySelector('.admin-entry');
   if (admin && state.source === 'static') {
-    admin.title = '管理员登录（打开本机后台）';
-    admin.setAttribute('aria-label', '管理员登录（打开本机后台）');
+    admin.title = tx('common.adminEntry', '');
+    admin.setAttribute('aria-label', tx('common.adminEntry', ''));
   }
 }
 
@@ -162,36 +244,19 @@ function updateNavActive() {
 }
 
 /* ---------------- 通用片段 ---------------- */
-function projectCover(c) {
+function projectCover(c, loading = 'lazy') {
   if (c.cover) {
     const first = (c.images || [])[0];
-    const alt = c.coverAlt || (first && first.alt) || `${c.title || '项目'}封面`;
-    return `<img src="${safeUrl(c.cover)}" alt="${esc(alt)}" loading="lazy" decoding="async">`;
+    const alt = c.coverAlt || (first && first.alt) || `${c.title || tx('common.projectFallbackTitle', '')}${tx('common.coverSuffix', '')}`;
+    return imageFrame(c.cover, alt, { loading });
   }
   return `<div class="v5-cover-fallback"><span>${esc(c.number || '')}</span><b>${esc((c.title || 'C').slice(0, 1))}</b></div>`;
 }
 
-const TAG_NOTES = {
-  'C 语言': '建库、建表与链表增删改查',
-  'SQL Server': '数据库设计与 SQL 查询',
-  '数据结构': '链表与结构体实践',
-  'JavaScript': '页面交互与工具逻辑',
-  'HTML / CSS': '页面结构与响应式样式',
-  'GitHub Pages': '静态站部署与自定义域名',
-  'Gitee Pages': '国内镜像部署',
-  '物联网': '传感器数据与设备联调',
-  '声音可视化': '实时波形与频谱展示',
-  'WiFi 链路': 'ESP32 联网与数据传输',
-  '本地处理': '文件不上传，浏览器内完成',
-  '无上传': '转换全程留在本机',
-  '公益课': '课程设计与现场授课',
-  '课程设计': '四十分钟实验课拆解',
-  '现场授课': '图书馆现场带课'
-};
-
 function chipTip(tag, title) {
-  const note = TAG_NOTES[tag] || '这个案例里用到的一项技能';
-  return `${tag} · 用在《${title}》：${note}`;
+  const notes = SITE_TEXT.tagNotes || {};
+  const note = notes[tag] || notes.fallback || '';
+  return tx('tagNotes.pattern', '', { tag, title, note });
 }
 
 function chips(tags = [], max = 4, context = '') {
@@ -201,22 +266,22 @@ function chips(tags = [], max = 4, context = '') {
 function projectCard(c, index = 0) {
   if (isLocked(c)) {
     return `<article class="v5-project-card v5-locked reveal">
-      <div class="v5-project-media"><div class="v5-cover-fallback v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
+      <div class="v5-project-media"><div class="v5-cover-fallback v5-lock-fallback"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></div><span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
       <div class="v5-project-copy">
-        <span class="v5-project-meta">项目</span>
+        <span class="v5-project-meta">${esc(tx('project.metaProject', ''))}</span>
         <h3 class="v5-project-title">${esc(c.title)}</h3>
-        <p class="v5-project-summary">该内容暂未公开</p>
+        <p class="v5-project-summary">${esc(tx('project.locked', ''))}</p>
       </div>
     </article>`;
   }
   return `<a class="v5-project-card reveal v5-focus-item" href="#/work/${esc(c.id)}">
-    <div class="v5-project-media v5-glare">${projectCover(c)}<span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
+    <div class="v5-project-media v5-glare">${projectCover(c, index === 0 ? 'eager' : 'lazy')}<span class="v5-project-no">${String(index + 1).padStart(2, '0')}</span></div>
     <div class="v5-project-copy">
-      <span class="v5-project-meta">${esc(c.number || '')} / ${esc(c.category === 'practice' ? '公益实践' : '项目')}</span>
+      <span class="v5-project-meta">${esc(c.number || '')} / ${esc(c.category === 'practice' ? tx('project.metaPractice', '') : tx('project.metaProject', ''))}</span>
       <h3 class="v5-project-title">${esc(c.title)}</h3>
       <p class="v5-project-summary">${esc(c.summary)}</p>
       ${chips(c.tags || [], 3, c.title)}
-      <span class="v5-card-link">查看记录 ${ARROW}</span>
+      <span class="v5-card-link">${esc(tx('project.read', ''))} ${ARROW}</span>
     </div>
   </a>`;
 }
@@ -225,56 +290,63 @@ function practiceCard(c) {
   if (!c) return '';
   if (isLocked(c)) {
     return `<article class="v5-practice v5-locked reveal">
-      <div class="v5-practice-media"><div class="v5-cover-fallback v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span class="v5-practice-tag">公益实践</span></div>
+      <div class="v5-practice-media"><div class="v5-cover-fallback v5-lock-fallback"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></div><span class="v5-practice-tag">${esc(tx('project.metaPractice', ''))}</span></div>
       <div class="v5-practice-copy">
-        <span class="v5-project-meta">公益实践</span>
+        <span class="v5-project-meta">${esc(tx('project.metaPractice', ''))}</span>
         <h3 class="v5-project-title">${esc(c.title)}</h3>
-        <p class="v5-project-summary">该内容暂未公开</p>
+        <p class="v5-project-summary">${esc(tx('project.locked', ''))}</p>
       </div>
     </article>`;
   }
   return `<a class="v5-practice reveal" href="#/work/${esc(c.id)}">
-    <div class="v5-practice-media">${projectCover(c)}<span class="v5-practice-tag">公益实践</span></div>
+    <div class="v5-practice-media">${projectCover(c)}<span class="v5-practice-tag">${esc(tx('project.metaPractice', ''))}</span></div>
     <div class="v5-practice-copy">
-      <span class="v5-project-meta">${esc(c.number || '')} / 公益实践</span>
+      <span class="v5-project-meta">${esc(c.number || '')} / ${esc(tx('project.metaPractice', ''))}</span>
       <h3 class="v5-project-title">${esc(c.title)}</h3>
       <p class="v5-project-summary">${esc(c.summary)}</p>
-      <p class="v5-practice-note">课程放在东营区图书馆，四十分钟里让孩子先动手，再讲为什么。</p>
-      <span class="v5-card-link">看公益课记录 ${ARROW}</span>
+      <p class="v5-practice-note">${esc(tx('project.practiceNote', ''))}</p>
+      <span class="v5-card-link">${esc(tx('project.readPractice', ''))} ${ARROW}</span>
     </div>
   </a>`;
 }
 
-const TIMELINE_LINKS = {
-  '01': { href: '#/internship', label: '看实习记录' },
-  '02': { href: '#/work/case-physics', label: '看公益课记录' },
-  '03': { href: '/assets/photos/campus/qingxie.webp', label: '看现场照片', external: true },
-  '04': { href: '/assets/photos/campus/kexie.webp', label: '看现场照片', external: true }
-};
+/* 四学段时间线：桌面左右交替，移动端统一在轴线右侧。
+   每个节点保留说明和照片按钮；照片数据由后台 photos 字段提供。 */
+function timelineItems(items = []) {
+  return byOrder(items || []).slice(0, 4);
+}
 
 function timelineHtml(items = []) {
-  return `<div class="v5-timeline">${items.map((item) => {
-    if (isLocked(item)) {
-      return `<article class="v5-timeline-item v5-locked reveal">
-        <span class="v5-timeline-no">${esc(item.no || '')}</span>
-        <div class="v5-timeline-body"><span class="v5-timeline-meta">${esc(item.meta || '')}</span><h3>${esc(item.title || item.label || '')}</h3><p>该内容暂未公开</p></div>
-      </article>`;
-    }
-    const map = TIMELINE_LINKS[item.no] || {};
-    const href = item.href || map.href;
-    const label = item.linkLabel || map.label || '查看';
-    const external = item.external != null ? item.external : Boolean(map.external);
-    const body = `<div class="v5-timeline-body">
-        <span class="v5-timeline-meta">${esc(item.meta || '')}</span>
+  const list = timelineItems(items);
+  return `<div class="v5-life-timeline" data-count="${list.length}" aria-label="${esc(tx('timeline.axisLabel', '成长时间线'))}">
+    <span class="v5-life-axis" aria-hidden="true"></span>
+    ${list.map((item, index) => {
+      if (isLocked(item)) {
+        return `<article class="v5-life-item v5-life-item--${index % 2 ? 'right' : 'left'} reveal">
+          <span class="v5-life-dot" aria-hidden="true"></span>
+          <div class="v5-life-card">
+            <div class="v5-life-head"><span class="v5-life-no">${esc(item.no || String(index + 1).padStart(2, '0'))}</span><span class="v5-life-meta">${esc(item.meta || '')}</span></div>
+            <h3>${esc(item.title || item.label || '')}</h3>
+            <p class="v5-life-locked">${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
+          </div>
+        </article>`;
+      }
+      const photos = normalizePhotos(item.photos || item.images || []);
+      const buttonLabel = item.photoLabel || (photos.length ? tx('timeline.photoButton', '看这一段的照片') : tx('timeline.noPhotoButton', '照片还在整理'));
+      const body = `<div class="v5-life-head"><span class="v5-life-no">${esc(item.no || String(index + 1).padStart(2, '0'))}</span><span class="v5-life-meta">${esc(item.meta || '')}</span></div>
         <h3>${esc(item.label || '')}</h3>
         <p>${esc(item.text || '')}</p>
-        ${href ? `<span class="v5-card-link v5-timeline-open">${esc(label)} ${ARROW}</span>` : ''}
-      </div>`;
-    const inner = `<span class="v5-timeline-no">${esc(item.no || '')}</span>${body}`;
-    return href
-      ? `<a class="v5-timeline-item v5-timeline-item--link reveal" href="${safeUrl(href)}"${external ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(item.label || '')}：${esc(label)}">${inner}</a>`
-      : `<article class="v5-timeline-item reveal">${inner}</article>`;
-  }).join('')}</div>`;
+        <div class="v5-life-foot">
+          <button class="v5-life-photo-btn${photos.length ? '' : ' is-empty'}" type="button" ${photos.length ? `data-timeline-index="${index}"` : 'disabled aria-disabled="true"'} aria-label="${esc(buttonLabel)}">
+            <span class="v5-life-photo-icon" aria-hidden="true">${photos.length ? '▧' : '·'}</span>${esc(buttonLabel)} ${ARROW}
+          </button>
+        </div>`;
+      return `<article class="v5-life-item v5-life-item--${index % 2 ? 'right' : 'left'} reveal">
+        <span class="v5-life-dot" aria-hidden="true"></span>
+        <div class="v5-life-card">${body}</div>
+      </article>`;
+    }).join('')}
+  </div>`;
 }
 
 function interestChildren(item) {
@@ -303,17 +375,28 @@ function richTextHtml(value) {
 
 function travelTreeHtml(item, children) {
   const total = children.reduce((sum, child) => sum + (child.images || []).length, 0);
-  const nodes = children.map((child, i) => `<a class="v5-travel-node reveal" href="#/interest/${esc(child.id)}" aria-label="打开${esc(child.title)}相册">
-      <span class="v5-travel-node-no">${String(i + 1).padStart(2, '0')}</span>
-      <span class="v5-travel-node-copy"><strong>${esc(child.title)}</strong><small>${esc(child.lead || '')}</small><em>${(child.images || []).length} 张照片</em></span>
-      <span class="v5-travel-node-cover"><img src="${safeUrl(child.cover)}" alt="${esc(child.title)}相册封面" loading="lazy" decoding="async"></span>
+  const nodes = children.map((child, i) => {
+    const no = String(i + 1).padStart(2, '0');
+    if (isLocked(child)) {
+      return `<div class="v5-travel-node v5-travel-node--locked v5-locked reveal" aria-label="${esc(child.title)}">
+      <span class="v5-travel-node-no">${no}</span>
+      <span class="v5-travel-node-copy"><strong>${esc(child.title)}</strong><small>${esc(tx('common.privateNote', '该内容暂未公开'))}</small></span>
+      <span class="v5-travel-node-cover v5-lock-fallback"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></span>
+      <span class="v5-travel-node-arrow" aria-hidden="true">—</span>
+    </div>`;
+    }
+    return `<a class="v5-travel-node reveal" href="#/interest/${esc(child.id)}" aria-label="${esc(tx('interest.openAlbum', '打开相册'))}：${esc(child.title)}">
+      <span class="v5-travel-node-no">${no}</span>
+      <span class="v5-travel-node-copy"><strong>${esc(child.title)}</strong><small>${esc(child.lead || '')}</small><em>${(child.images || []).length} ${esc(tx('common.photosUnit', '张照片'))}</em></span>
+      <span class="v5-travel-node-cover">${imageFrame(child.cover, `${child.title}${tx('interest.camera', '相册')}${tx('common.coverSuffix', '')}`, { loading: i < 2 ? 'eager' : 'lazy' })}</span>
       <span class="v5-travel-node-arrow">${ARROW}</span>
-    </a>`).join('');
-  return `<div class="v5-travel-tree" role="group" aria-label="${esc(item.title)}地点分支">
+    </a>`;
+  }).join('');
+  return `<div class="v5-travel-tree" role="group" aria-label="${esc(item.title)}${esc(tx('interest.treeGroupSuffix', ''))}">
     <div class="v5-travel-root">
-      <span class="v5-travel-root-kicker">TRAVEL / PLACES</span>
+      <span class="v5-travel-root-kicker">${esc(tx('interest.treeRootKicker', 'TRAVEL / PLACES'))}</span>
       <strong>${esc(item.title)}</strong>
-      <span>${children.length} 个地点 · ${total} 张照片</span>
+      <span>${esc(tx('interest.treePlaces', '{count} 个地点 · {photos} 张照片', { count: children.length, photos: total }))}</span>
     </div>
     <div class="v5-travel-branches">${nodes}</div>
   </div>`;
@@ -322,22 +405,22 @@ function travelTreeHtml(item, children) {
 function interestCard(item, index = 0) {
   if (isLocked(item)) {
     return `<article class="v5-interest-card v5-locked reveal">
-      <div class="v5-interest-cover"><div class="v5-lock-fallback"><span aria-hidden="true">🔒</span></div><span>${String(index + 1).padStart(2, '0')}</span></div>
+      <div class="v5-interest-cover"><div class="v5-lock-fallback"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></div><span>${String(index + 1).padStart(2, '0')}</span></div>
       <div class="v5-interest-copy">
-        <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>0 张</span></div>
-        <p>该内容暂未公开</p>
+        <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>0 ${esc(tx('common.photoUnit', '张'))}</span></div>
+        <p>${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
       </div>
     </article>`;
   }
   const count = interestPhotoCount(item);
   const first = (item.images || [])[0];
-  const alt = (first && first.alt) || `${item.title || '兴趣'}照片`;
-  return `<a class="v5-interest-card reveal v5-focus-item" href="#/interest/${esc(item.id)}">
-    <div class="v5-interest-cover v5-glare"><img src="${safeUrl(item.cover)}" alt="${esc(alt)}" loading="lazy" decoding="async"><span>${String(index + 1).padStart(2, '0')}</span></div>
+  const alt = (first && first.alt) || `${item.title || tx('common.interestFallbackTitle', '')}${tx('project.photoAltSuffix', '')}`;
+  return `<a class="v5-interest-card reveal v5-focus-item" href="#/interest/${esc(item.id)}" data-interest-key="${esc(item.id)}">
+    <div class="v5-interest-cover v5-glare">${imageFrame(item.cover, alt, { loading: index < 4 ? 'eager' : 'lazy', priority: index === 0 ? 'high' : '' })}<span>${String(index + 1).padStart(2, '0')}</span></div>
     <div class="v5-interest-copy">
-      <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>${count} 张</span></div>
+      <div class="v5-interest-head"><h3>${esc(item.title)}</h3><span>${count} ${esc(tx('common.photoUnit', '张'))}</span></div>
       <p>${esc(item.lead || '')}</p>
-      <span class="v5-card-link">打开相册 ${ARROW}</span>
+      <span class="v5-card-link">${esc(tx('interest.openAlbum', '打开相册'))} ${ARROW}</span>
     </div>
   </a>`;
 }
@@ -364,14 +447,11 @@ function renderHome() {
   const tags = (hero.tags || []).map((t) => `<span class="v5-tag">${esc(t)}</span>`).join('');
   const facts = (about.facts || []).map((f) => `<div class="v5-fact"><span>${esc(f.k)}</span><b>${esc(f.v)}</b></div>`).join('');
   const abilities = (about.abilities || []).map((a) => `<div class="v5-ability"><div class="v5-ability-head"><span>${esc(a.t)}</span></div><p>${esc(a.d)}</p></div>`).join('');
-  const SKILL_FROM = {
-    'SQL Server': '图书管理系统建库建表',
-    'C 语言': 'C 语言程序设计 · ESP32 固件',
-    'C++': 'C 语言程序设计 · ESP32 固件'
-  };
+  const SKILL_FROM = SITE_TEXT.skillFrom || {};
   const skills = (about.skills || []).map((s) => `<span class="v5-skill"${SKILL_FROM[s.n] ? ` data-from="${esc(SKILL_FROM[s.n])}" tabindex="0"` : ''}>${esc(s.n)}</span>`).join('');
   const emailRaw = ((home.contacts || []).find((c) => c.label === '邮箱'));
-  const email = isLocked(emailRaw) ? { value: '暂未公开', url: '' } : (emailRaw || { value: '1322816531@qq.com', url: 'mailto:1322816531@qq.com' });
+  const fallbackEmail = tx('home.emailFallback', '');
+  const email = isLocked(emailRaw) ? { value: tx('common.privateNote', ''), url: '' } : (emailRaw || { value: fallbackEmail, url: `mailto:${fallbackEmail}` });
 
   return `
   <section class="v5-hero wrap">
@@ -384,54 +464,54 @@ function renderHome() {
         ${hero.primary ? `<a class="v5-btn v5-btn--primary" href="${safeUrl(hero.primary.href)}">${esc(hero.primary.label)} ${ARROW}</a>` : ''}
         ${hero.secondary ? `<a class="v5-btn" href="${safeUrl(hero.secondary.href)}">${esc(hero.secondary.label)} ${ARROW}</a>` : ''}
       </div>
-      <p class="v5-hero-note">现在在读，也在找嵌入式、物联网方向的实习机会。</p>
+      <p class="v5-hero-note">${esc(tx('home.heroNote', '这个家伙很懒，只想把你留下来。'))}</p>
     </div>
     <aside class="v5-profile">
-      <div class="v5-profile-head"><span>PROFILE&nbsp;/&nbsp;2025</span><span class="v5-live"><i></i>OPEN</span></div>
+      <div class="v5-profile-head"><span>${esc(tx('home.profileKicker', ''))}</span><span class="v5-live"><i></i>${esc(tx('home.profileOpen', ''))}</span></div>
       ${profile}
       <div class="v5-signal">
-        <div class="v5-profile-row"><span>SIGNAL</span><b class="v5-signal-val" data-signal="98.4">98.4</b></div>
+        <div class="v5-profile-row"><span>${esc(tx('home.signalLabel', ''))}</span><b class="v5-signal-val" data-signal="98.4">98.4</b></div>
         <div class="v5-signal-bar" aria-hidden="true"><i></i></div>
       </div>
-      <div class="v5-profile-row"><span>LOCAL</span><b class="v5-clock" aria-hidden="true">--:--:--</b></div>
-      <p class="v5-profile-motto">无限进步</p>
+      <div class="v5-profile-row"><span>${esc(tx('home.localLabel', ''))}</span><b class="v5-clock" aria-hidden="true">--:--:--</b></div>
+      <p class="v5-profile-motto">${esc(tx('home.motto', '无限进步'))}</p>
     </aside>
   </section>
 
   <section class="v5-section wrap">
-    ${sectionHead('01 / PROJECTS', '做过的四件事', '本站、工具箱、语音监测、图书管理。先看东西，再看过程。')}
+    ${sectionHead(tx('home.projectsNo', '01 / PROJECTS'), tx('home.projectsTitle', '实习/项目'), tx('home.projectsLead', ''))}
     <div class="v5-project-grid v5-focus-group">${selected.slice(0, 4).map(projectCard).join('')}</div>
-    <a class="v5-more" href="#/experience">查看全部项目与经历 ${ARROW}</a>
+    <a class="v5-more" href="#/experience">${esc(tx('home.moreProjects', '查看全部项目与经历'))} ${ARROW}</a>
   </section>
 
   <section class="v5-section wrap v5-practice-section">
-    ${sectionHead('02 / PRACTICE', '公益实践', '科普课单独放一块。它不写在项目清单里，但确实花了不少时间。')}
+    ${sectionHead(tx('home.practiceNo', '02 / PRACTICE'), tx('home.practiceTitle', '公益实践'), tx('home.practiceLead', ''))}
     ${practiceCard(practice)}
   </section>
 
   <section class="v5-section wrap">
-    ${sectionHead('03 / EXPERIENCE', '经历时间线', '从校内到图书馆，再到两个协会。按顺序排，一段一件事。')}
-    ${timelineHtml(timeline)}
+    ${sectionHead(tx('home.interestsNo', '03 / INTERESTS'), tx('home.interestsTitle', '探索'), tx('home.interestsLead', ''))}
+    <div class="v5-interest-grid${interests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group">${interests.map(interestCard).join('')}</div>
+    <a class="v5-more" href="#/interest">${esc(tx('home.moreInterests', '查看全部兴趣照片'))} ${ARROW}</a>
   </section>
 
   <section class="v5-section wrap">
-    ${sectionHead('04 / INTERESTS', '离开工位以后', '骑行、羽毛球、登山，还有收在“旅行”里的三座城市。点开是一段记录。')}
-    <div class="v5-interest-grid${interests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group">${interests.map(interestCard).join('')}</div>
-    <a class="v5-more" href="#/interest">查看全部兴趣照片 ${ARROW}</a>
+    ${sectionHead(tx('home.timelineNo', '04 / EXPERIENCE'), tx('home.timelineTitle', '成长时间线'), tx('home.timelineLead', ''))}
+    ${timelineHtml(timeline)}
   </section>
 
   <section class="v5-section wrap v5-about-section">
-    ${sectionHead('05 / ABOUT', about.title || '关于我', about.lead || '')}
+    ${sectionHead(tx('home.aboutNo', '05 / ABOUT'), about.title || tx('home.aboutTitle', '关于我'), about.lead || tx('home.aboutLead', ''))}
     <div class="v5-about-grid">
       <div class="v5-about-main">
         ${(about.lines || []).map((l) => `<p>${esc(l)}</p>`).join('')}
-        <blockquote class="v5-motto">「${esc((about.belief && about.belief.quote) || '无限进步。')}」</blockquote>
+        <blockquote class="v5-motto">「${esc((about.belief && about.belief.quote) || tx('home.quoteFallback', '无限进步。'))}」</blockquote>
         <div class="v5-abilities">${abilities}</div>
       </div>
       <aside class="v5-about-side">
-        <div class="v5-side-block"><span class="v5-side-label">资料 / PROFILE</span>${facts}</div>
-        <div class="v5-side-block"><span class="v5-side-label">已掌握 / SKILLS</span><div class="v5-skills">${skills}</div></div>
-        <div class="v5-side-block"><span class="v5-side-label">邮箱 / EMAIL</span><a class="v5-side-mail" href="${safeUrl(email.url)}">${email.url ? '点击发送' : esc(email.value)}</a></div>
+        <div class="v5-side-block"><span class="v5-side-label">${esc(tx('home.profileLabel', '资料 / PROFILE'))}</span>${facts}</div>
+        <div class="v5-side-block"><span class="v5-side-label">${esc(tx('home.skillsLabel', '已掌握 / SKILLS'))}</span><div class="v5-skills">${skills}</div></div>
+        <div class="v5-side-block"><span class="v5-side-label">${esc(tx('home.emailLabel', '邮箱 / EMAIL'))}</span><a class="v5-side-mail" href="${safeUrl(email.url)}">${email.url ? esc(tx('footer.emailSend', '邮箱 · 点击发送')) : esc(email.value)}</a></div>
       </aside>
     </div>
   </section>`;
@@ -439,38 +519,25 @@ function renderHome() {
 
 /* ---------------- 实习 ---------------- */
 function renderInternship() {
+  const cards = (SITE_TEXT.internship.cards || []).map((card) => `<a class="v5-intern-card v5-intern-card--link reveal" href="${safeUrl(card.href)}" aria-label="${esc(card.title)}${esc(tx('common.separator', ''))}${esc(tx('internship.cardLink', ''))}">
+        <span class="v5-intern-no">${esc(card.no)}</span>
+        <div>
+          <span class="v5-timeline-meta">${esc(card.meta)}</span>
+          <h2>${esc(card.title)}</h2>
+          ${(card.paragraphs || []).map((p) => `<p>${esc(p)}</p>`).join('')}
+          ${chips(card.tags || [])}
+          <span class="v5-card-link v5-intern-open">${esc(tx('internship.cardLink', ''))} ${ARROW}</span>
+        </div>
+      </a>`).join('');
   return `
   <section class="v5-page-head wrap">
     ${backBar()}
-    <span class="v5-kicker">01 / INTERNSHIP</span>
-    <h1>把一件事从开头跟到落地</h1>
-    <p>校内预备实习和东营区图书馆实践。两段都不长，一段练项目里的串联，一段练课程和现场。</p>
+    <span class="v5-kicker">${esc(tx('internship.kicker', ''))}</span>
+    <h1>${esc(tx('internship.title', ''))}</h1>
+    <p>${esc(tx('internship.lead', ''))}</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-intern-grid">
-      <a class="v5-intern-card v5-intern-card--link reveal" href="#/experience" aria-label="校内预备实习：查看经历记录">
-        <span class="v5-intern-no">01</span>
-        <div>
-          <span class="v5-timeline-meta">在学校 · 项目实践</span>
-          <h2>校内预备实习</h2>
-          <p>参与项目实践，做整体串联和调试。最难的一段是前后端和 UI 交互不兼容：前端用 AOS 滚动和响应式交互，后端用 GitHub Pages 与 Gitee Pages 双平台部署，再把路径和接口接起来。</p>
-          <p>这段实习让我知道，代码能跑只是第一步。别人能不能按你的说明复核，才是另一回事。</p>
-          ${chips(['项目串联', 'AOS 滚动', '双平台部署'])}
-          <span class="v5-card-link v5-intern-open">看经历记录 ${ARROW}</span>
-        </div>
-      </a>
-      <a class="v5-intern-card v5-intern-card--link reveal" href="#/work/case-physics" aria-label="东营区图书馆实践：查看公益课记录">
-        <span class="v5-intern-no">02</span>
-        <div>
-          <span class="v5-timeline-meta">东营区图书馆 · 公益课</span>
-          <h2>东营区图书馆实践</h2>
-          <p>把「小小物理学家探险队」的课程带进图书馆。课程设计、现场授课、场地和物料对接都要跟。四十分钟的课，孩子愿不愿意动手，一眼就能看出来。</p>
-          <p>每次上完记下哪一段坐不住，下一次把那段拆短，或者换一个实验。</p>
-          ${chips(['课程设计', '现场授课', '物料对接'])}
-          <span class="v5-card-link v5-intern-open">看公益课记录 ${ARROW}</span>
-        </div>
-      </a>
-    </div>
+    <div class="v5-intern-grid">${cards}</div>
   </section>`;
 }
 
@@ -483,28 +550,28 @@ function renderExperience() {
   return `
   <section class="v5-page-head wrap">
     ${backBar()}
-    <span class="v5-kicker">02 / EXPERIENCE</span>
-    <h1>项目是经历的主体</h1>
-    <p>四件自己做出来的东西，加一门公益课。下面按项目、时间线、校园照片排开。</p>
+    <span class="v5-kicker">${esc(tx('experience.kicker', '02 / EXPERIENCE'))}</span>
+    <h1>${esc(tx('experience.title', '项目与实践'))}</h1>
+    <p>${esc(tx('experience.lead', ''))}</p>
   </section>
   <section class="v5-section wrap">
-    ${sectionHead('02.1 / PROJECTS', '四件做过的东西', '每张卡片先写做了什么、我负责哪一段、最后留下什么。')}
+    ${sectionHead(tx('experience.projectsNo', '02.1 / PROJECTS'), tx('experience.projectsTitle', '项目'), tx('experience.projectsLead', ''))}
     <div class="v5-project-grid v5-focus-group">${selected.slice(0, 4).map(projectCard).join('')}</div>
   </section>
   <section class="v5-section wrap v5-practice-section">
-    ${sectionHead('02.2 / PRACTICE', '公益课', '「小小物理学家探险队」放在项目之外，单独记。')}
+    ${sectionHead(tx('experience.practiceNo', '02.2 / PRACTICE'), tx('experience.practiceTitle', '实践'), tx('experience.practiceLead', ''))}
     ${practiceCard(practice)}
   </section>
   <section class="v5-section wrap">
-    ${sectionHead('02.3 / TIMELINE', '四段经历', '校内预备实习 → 东营区图书馆 → 青年志愿者协会 → 科技协会。')}
+    ${sectionHead(tx('experience.timelineNo', '02.3 / TIMELINE'), tx('experience.timelineTitle', '四段成长'), tx('experience.timelineLead', ''))}
     ${timelineHtml((state.data.home && state.data.home.timeline) || [])}
   </section>
   ${campus.length ? `<section class="v5-section wrap">
-    ${sectionHead('02.4 / CAMPUS', '校园里的两张照片', '青协和科协各留一张，不铺成相册。')}
-    <div class="v5-campus-grid">${campus.map((item) => isLocked(item)
-      ? `<figure class="v5-campus-card v5-locked reveal"><div class="v5-lock-fallback"><span aria-hidden="true">🔒</span></div><figcaption><strong>${esc(item.title)}</strong><span>该内容暂未公开</span></figcaption></figure>`
+    ${sectionHead(tx('experience.campusNo', '02.4 / CAMPUS'), tx('experience.campusTitle', '校园里的两张照片'), tx('experience.campusLead', ''))}
+    <div class="v5-campus-grid">${campus.map((item, index) => isLocked(item)
+      ? `<figure class="v5-campus-card v5-locked reveal"><div class="v5-lock-fallback"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></div><figcaption><strong>${esc(item.title)}</strong><span>${esc(tx('common.privateNote', '该内容暂未公开'))}</span></figcaption></figure>`
       : `<figure class="v5-campus-card reveal">
-      <a class="v5-campus-media" href="${safeUrl(item.image)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(item.title)}"><img src="${safeUrl(item.image)}" alt="${esc(item.alt)}" loading="lazy" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
+      <a class="v5-campus-media" href="${safeUrl(item.image)}" target="_blank" rel="noopener" aria-label="${esc(tx('common.viewOriginal', '查看原图'))}：${esc(item.title)}">${imageFrame(item.image, item.alt, { loading: index === 0 ? 'eager' : 'lazy' })}<span class="v5-open-tag">${esc(tx('common.originalTag', '原图 ↗'))}</span></a>
       <figcaption><strong>${esc(item.title)}</strong><span>${esc(item.caption)}</span></figcaption>
     </figure>`).join('')}</div>
   </section>` : ''}`;
@@ -516,30 +583,36 @@ function renderInterest(id) {
   const indexInterests = byOrder(allInterests).filter((item) => !item.parent);
   if (id) {
     const item = allInterests.find((x) => x.id === id);
-    if (!item) return `<section class="v5-page-head wrap">${backBar({ href: '#/interest', label: '返回兴趣' })}<h1>这个相册不存在</h1></section>`;
+    if (!item) return `<section class="v5-page-head wrap">${backBar({ href: '#/interest', label: tx('common.backInterest', '返回兴趣') })}<h1>${esc(tx('errors.missingAlbum', '这个相册不存在'))}</h1></section>`;
     const parent = item.parent ? allInterests.find((x) => x.id === item.parent) : null;
-    const backSub = parent ? { href: `#/interest/${parent.id}`, label: `返回${parent.title}` } : { href: '#/interest', label: '返回兴趣' };
-    const kicker = parent ? `04 / TRAVEL · ${parent.title}` : '04 / INTEREST';
+    const backSub = parent ? { href: `#/interest/${parent.id}`, label: `${tx('common.backPrefix', '')}${parent.title}` } : { href: '#/interest', label: tx('common.backInterest', '返回兴趣') };
+    const kicker = parent ? `${tx('interest.travelKicker', '04 / TRAVEL')} · ${parent.title}` : tx('interest.indexKicker', '04 / INTEREST');
     if (isLocked(item)) {
       return `
       <section class="v5-page-head wrap">
         ${backBar(backSub)}
         <span class="v5-kicker">${esc(kicker)}</span>
         <h1>${esc(item.title)}</h1>
-        <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+        <p class="v5-locked-note"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span> ${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
       </section>`;
     }
     const children = interestChildren(item);
-    const story = item.intro
-      ? `<section class="v5-section wrap v5-interest-story"><div class="v5-interest-intro">${richTextHtml(item.intro)}</div></section>`
+    const storyCover = item.cover
+      ? `<figure class="v5-story-cover">${imageFrame(item.cover, `${item.title || ''}${tx('common.coverSuffix', '封面')}`, { loading: 'eager', priority: 'high' })}</figure>`
+      : '';
+    const story = (item.intro || storyCover)
+      ? `<section class="v5-section wrap v5-interest-story"><div class="v5-interest-story-grid${item.intro ? '' : ' v5-interest-story-grid--cover-only'}">${item.intro ? `<div class="v5-interest-intro">${richTextHtml(item.intro)}</div>` : ''}${storyCover}</div></section>`
       : '';
     const tree = children.length
       ? `<section class="v5-section wrap v5-travel-section">${travelTreeHtml(item, children)}</section>`
       : '';
     const gallery = (item.images || []).length
-      ? `<section class="v5-section wrap">
+      ? `<section class="v5-section wrap v5-gallery-section" data-gallery-id="${esc(item.id)}">
       <div class="v5-gallery">${(item.images || []).map((img, i) => `<figure class="v5-gallery-item reveal${i === 0 ? ' is-lead' : ''}">
-        <a class="v5-gallery-media" href="${safeUrl(img.src)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(img.alt || item.title || '')}"><img src="${safeUrl(img.src)}" alt="${esc(img.alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async"><span class="v5-open-tag">原图 ↗</span></a>
+        <button class="v5-gallery-media" type="button" data-photo-open data-gallery-id="${esc(item.id)}" data-photo-index="${i}" aria-label="${esc(tx('common.viewOriginal', '查看原图'))}：${esc(img.alt || item.title || '')}">
+          ${imageFrame(img.src, img.alt || item.title || '', { loading: i < 4 ? 'eager' : 'lazy', priority: i === 0 ? 'high' : '' })}
+          <span class="v5-open-tag">${esc(tx('common.originalTag', '原图 ↗'))}</span>
+        </button>
         <figcaption>${esc(img.caption || '')}</figcaption>
       </figure>`).join('')}</div>
     </section>`
@@ -558,26 +631,288 @@ function renderInterest(id) {
   return `
   <section class="v5-page-head wrap">
     ${backBar()}
-    <span class="v5-kicker">04 / INTEREST</span>
-    <h1>玩过的，去过的</h1>
-    <p>骑行、羽毛球、登山，还有一个收着北京、淄博、济南的“旅行”。点开每一项，先看一段记录，再看照片。</p>
+    <span class="v5-kicker">${esc(tx('interest.indexKicker', '04 / INTEREST'))}</span>
+    <h1>${esc(tx('interest.indexTitle', '探索，永无止境！'))}</h1>
+    <p>${esc(tx('interest.indexLead', ''))}</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-interest-grid v5-interest-grid--page${indexInterests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group">${indexInterests.map(interestCard).join('')}</div>
+    <div class="v5-album-filter" role="tablist" aria-label="${esc(tx('interest.filterLabel', '相册分类'))}">
+      <button class="is-active" type="button" role="tab" aria-selected="true" data-filter="all">${esc(tx('interest.filterAll', '全部'))}</button>
+      ${indexInterests.map((item) => `<button type="button" role="tab" aria-selected="false" data-filter="${esc(item.id)}">${esc(item.title)}</button>`).join('')}
+    </div>
+    <div class="v5-interest-grid v5-interest-grid--page${indexInterests.length === 4 ? ' v5-interest-grid--four' : ''} v5-focus-group" data-interest-grid>${indexInterests.map(interestCard).join('')}</div>
   </section>`;
+}
+
+/* ---------------- 图片查看器 ---------------- */
+const photoViewer = {
+  open: false,
+  images: [],
+  index: 0,
+  title: '',
+  meta: '',
+  note: '',
+  emptyText: '',
+  opener: null,
+  lastFocus: null,
+  touch: null,
+  preloaded: new Set(),
+};
+
+function preloadPhoto(src) {
+  if (!src || photoViewer.preloaded.has(src)) return;
+  photoViewer.preloaded.add(src);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+  } catch (err) { /* ignore */ }
+}
+
+function ensurePhotoViewer() {
+  let root = $('#photoViewer');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'photoViewer';
+    root.className = 'v5-photo-viewer';
+    root.hidden = true;
+    document.body.appendChild(root);
+    bindPhotoViewerGlobal();
+  }
+  return root;
+}
+
+function photoViewerHtml() {
+  const total = photoViewer.images.length;
+  const current = photoViewer.images[photoViewer.index] || null;
+  const title = photoViewer.title || tx('modal.titleFallback', '照片');
+  const meta = photoViewer.meta || (total ? tx('modal.counter', '{current} / {total}', { current: photoViewer.index + 1, total }) : tx('modal.metaFallback', '照片'));
+  const counter = total ? tx('modal.counter', '{current} / {total}', { current: photoViewer.index + 1, total }) : '';
+  // 照片较多时只渲染当前附近的 9 个圆点，避免 70+ 个点撑破弹窗
+  const dotStart = total > 12 ? Math.max(0, Math.min(photoViewer.index - 4, total - 9)) : 0;
+  const dotEnd = total > 12 ? dotStart + 9 : total;
+  const dots = total > 1 ? `<div class="v5-photo-dots" role="tablist" aria-label="${esc(tx('modal.titleFallback', '照片'))}">${photoViewer.images.slice(dotStart, dotEnd).map((_, k) => {
+    const i = dotStart + k;
+    return `<button type="button" class="v5-photo-dot${i === photoViewer.index ? ' is-active' : ''}" data-photo-dot="${i}" role="tab" aria-selected="${i === photoViewer.index}" aria-label="${esc(tx('modal.counter', '{current} / {total}', { current: i + 1, total }))}"></button>`;
+  }).join('')}</div>` : '';
+  const stage = current
+    ? `<div class="v5-photo-stage" data-photo-stage>
+        ${total > 1 ? `<button class="v5-photo-nav v5-photo-prev" type="button" data-photo-prev aria-label="${esc(tx('modal.prev', '上一张'))}">‹</button>` : ''}
+        <figure class="v5-photo-figure">
+          ${imageFrame(current.src, current.alt || title, { loading: 'eager', priority: 'high', full: true })}
+          <figcaption class="v5-photo-caption">
+            ${photoDateText(current.date) ? `<time class="v5-photo-date" datetime="${esc(current.date)}">${esc(photoDateText(current.date))}</time>` : ''}
+            ${current.caption ? `<span class="v5-photo-caption-text">${esc(current.caption)}</span>` : ''}
+          </figcaption>
+        </figure>
+        ${total > 1 ? `<button class="v5-photo-nav v5-photo-next" type="button" data-photo-next aria-label="${esc(tx('modal.next', '下一张'))}">›</button>` : ''}
+        <span class="v5-photo-counter">${esc(counter)}</span>
+      </div>`
+    : `<div class="v5-photo-stage v5-photo-empty-stage" data-photo-stage><p>${esc(photoViewer.emptyText || tx('modal.empty', '这一组还没有照片。'))}</p></div>`;
+  return `<div class="v5-photo-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="photoViewerTitle" tabindex="-1">
+    <div class="v5-photo-viewer-head">
+      <div>
+        <span class="v5-photo-viewer-kicker">${esc(tx('modal.kicker', 'PHOTO / VIEWER'))}</span>
+        <h2 id="photoViewerTitle">${esc(title)}</h2>
+        <p>${esc(meta)}</p>
+      </div>
+      <button class="v5-photo-close" type="button" data-photo-close aria-label="${esc(tx('modal.close', '关闭'))}"><span aria-hidden="true">×</span></button>
+    </div>
+    ${stage}
+    ${dots}
+    <div class="v5-photo-viewer-foot">
+      ${current && current.alt ? `<p class="v5-photo-alt">${esc(current.alt)}</p>` : ''}
+      ${photoViewer.note ? `<p class="v5-photo-note">${esc(photoViewer.note)}</p>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderPhotoViewer() {
+  const root = ensurePhotoViewer();
+  root.innerHTML = `<div class="v5-photo-backdrop" data-photo-close aria-hidden="true"></div>${photoViewerHtml()}`;
+  hydrateImages(root);
+  const panel = $('.v5-photo-viewer-panel', root);
+  if (panel) requestAnimationFrame(() => panel.focus({ preventScroll: true }));
+}
+
+function openPhotoViewer(images, startIndex = 0, opts = {}) {
+  const list = normalizePhotos(images);
+  photoViewer.images = list;
+  photoViewer.index = list.length ? Math.max(0, Math.min(Number(startIndex) || 0, list.length - 1)) : 0;
+  photoViewer.title = opts.title || '';
+  photoViewer.meta = opts.meta || '';
+  photoViewer.note = opts.note || '';
+  photoViewer.emptyText = opts.emptyText || '';
+  photoViewer.opener = opts.opener || document.activeElement;
+  photoViewer.lastFocus = photoViewer.opener;
+  photoViewer.open = true;
+  const root = ensurePhotoViewer();
+  root.hidden = false;
+  document.body.classList.add('is-photo-viewer-open');
+  root.classList.remove('is-open');
+  requestAnimationFrame(() => {
+    root.classList.add('is-open');
+    renderPhotoViewer();
+  });
+  if (list.length) {
+    preloadPhoto(list[photoViewer.index].src);
+    preloadPhoto(list[photoViewer.index - 1]?.src);
+    preloadPhoto(list[photoViewer.index + 1]?.src);
+  }
+}
+
+function closePhotoViewer() {
+  const root = ensurePhotoViewer();
+  photoViewer.open = false;
+  root.classList.remove('is-open');
+  document.body.classList.remove('is-photo-viewer-open');
+  window.setTimeout(() => { root.hidden = true; }, 220);
+  const focus = photoViewer.lastFocus;
+  photoViewer.lastFocus = null;
+  if (focus && typeof focus.focus === 'function') focus.focus({ preventScroll: true });
+}
+
+function goPhoto(delta) {
+  const total = photoViewer.images.length;
+  if (!total) return;
+  photoViewer.index = (photoViewer.index + delta + total) % total;
+  preloadPhoto(photoViewer.images[photoViewer.index].src);
+  preloadPhoto(photoViewer.images[photoViewer.index - 1]?.src);
+  preloadPhoto(photoViewer.images[photoViewer.index + 1]?.src);
+  renderPhotoViewer();
+}
+
+function setPhoto(index) {
+  if (!photoViewer.images.length) return;
+  photoViewer.index = Math.max(0, Math.min(Number(index) || 0, photoViewer.images.length - 1));
+  renderPhotoViewer();
+}
+
+function bindPhotoViewerGlobal() {
+  const root = ensurePhotoViewer();
+  root.addEventListener('click', (event) => {
+    if (event.target.closest('[data-photo-close]')) { closePhotoViewer(); return; }
+    if (event.target.closest('[data-photo-prev]')) { goPhoto(-1); return; }
+    if (event.target.closest('[data-photo-next]')) { goPhoto(1); return; }
+    const dot = event.target.closest('[data-photo-dot]');
+    if (dot) setPhoto(Number(dot.dataset.photoDot));
+  });
+  root.addEventListener('touchstart', (event) => {
+    const touch = event.touches && event.touches[0];
+    if (!touch) return;
+    photoViewer.touch = { x: touch.clientX, y: touch.clientY };
+  }, { passive: true });
+  root.addEventListener('touchend', (event) => {
+    if (!photoViewer.touch) return;
+    const touch = event.changedTouches && event.changedTouches[0];
+    if (!touch) { photoViewer.touch = null; return; }
+    const dx = touch.clientX - photoViewer.touch.x;
+    const dy = touch.clientY - photoViewer.touch.y;
+    photoViewer.touch = null;
+    // 只处理明确的横向滑动，避免上下浏览时误触切图。
+    if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+      goPhoto(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+  document.addEventListener('keydown', (event) => {
+    if (!photoViewer.open) return;
+    const key = event.key || '';
+    const code = event.code || '';
+    if (key === 'Escape' || key === 'Esc' || code === 'Escape') { event.preventDefault(); closePhotoViewer(); }
+    else if (key === 'ArrowLeft' || key === 'Left' || code === 'ArrowLeft') { event.preventDefault(); goPhoto(-1); }
+    else if (key === 'ArrowRight' || key === 'Right' || code === 'ArrowRight') { event.preventDefault(); goPhoto(1); }
+  });
+}
+
+/* ---------------- 相册筛选 / 图片入口 ---------------- */
+function bindAlbumFilter(root) {
+  const bar = $('.v5-album-filter', root);
+  const grid = $('[data-interest-grid]', root);
+  if (!bar || !grid) return;
+  const cards = $$('.v5-interest-card', grid);
+  bar.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-filter]');
+    if (!button) return;
+    const value = button.dataset.filter || 'all';
+    $$('button[data-filter]', bar).forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('is-active', active);
+      item.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    cards.forEach((card) => {
+      const show = value === 'all' || card.dataset.interestKey === value;
+      if (show) {
+        card.style.display = '';
+        requestAnimationFrame(() => card.classList.remove('is-filtered-out'));
+      } else {
+        card.classList.add('is-filtered-out');
+        window.setTimeout(() => { if (card.classList.contains('is-filtered-out')) card.style.display = 'none'; }, 200);
+      }
+    });
+  });
+}
+
+function bindPhotoEntries(root) {
+  $$('[data-photo-open]', root).forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const galleryId = button.dataset.galleryId;
+      if (galleryId) {
+        const item = (state.data.interests || []).find((x) => x.id === galleryId);
+        if (!item) return;
+        const images = normalizePhotos(item.images || []);
+        openPhotoViewer(images, Number(button.dataset.photoIndex) || 0, {
+          title: item.title,
+          meta: tx('interest.photoCount', '{count} 张', { count: images.length }),
+          note: item.lead || '',
+          opener: button,
+        });
+        return;
+      }
+      const json = button.dataset.photoJson;
+      if (json) {
+        try {
+          const images = normalizePhotos(JSON.parse(json));
+          openPhotoViewer(images, Number(button.dataset.photoIndex) || 0, {
+            title: tx('modal.titleFallback', '照片'),
+            meta: tx('interest.photoCount', '{count} 张', { count: images.length }),
+            opener: button,
+          });
+        } catch (err) { /* ignore */ }
+      }
+    });
+  });
+}
+
+function bindTimelinePhotos(root) {
+  $$('[data-timeline-index]', root).forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.timelineIndex);
+      const item = timelineItems((state.data.home && state.data.home.timeline) || [])[index];
+      if (!item) return;
+      const photos = normalizePhotos(item.photos || item.images || []);
+      openPhotoViewer(photos, 0, {
+        title: item.label || item.title || tx('modal.titleFallback', '照片'),
+        meta: item.meta || '',
+        note: item.modalNote || (photos.length ? item.text : tx('timeline.emptyNote', '先留下文字，照片以后再补。')),
+        emptyText: tx('timeline.emptyPhotos', '这一段的照片还在整理。'),
+        opener: button,
+      });
+    });
+  });
 }
 
 /* ---------------- 项目详情 ---------------- */
 function renderCase(id) {
   const c = (state.data.work.cases || []).find((x) => x.id === id);
-  if (!c) return `<section class="v5-page-head wrap">${backBar({ href: '#/experience', label: '返回经历' })}<h1>内容不存在</h1></section>`;
+  if (!c) return `<section class="v5-page-head wrap">${backBar({ href: '#/experience', label: tx('case.back', '返回经历') })}<h1>${esc(tx('case.notFound', '内容不存在'))}</h1></section>`;
   if (isLocked(c)) {
     return `
     <section class="v5-page-head wrap">
-      ${backBar({ href: '#/experience', label: '返回经历' })}
-      <span class="v5-kicker">PROJECT</span>
+      ${backBar({ href: '#/experience', label: tx('case.back', '返回经历') })}
+      <span class="v5-kicker">${esc(tx('case.kickerProject', 'PROJECT'))}</span>
       <h1>${esc(c.title)}</h1>
-      <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+      <p class="v5-locked-note"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span> ${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
     </section>`;
   }
 
@@ -586,31 +921,32 @@ function renderCase(id) {
   const images = rawImages.map((img) => typeof img === 'string' ? { src: img, alt: c.title, caption: '' } : img);
   const tags = (c.tags || []).map((t) => `<span class="v5-skill" data-tip="${esc(chipTip(t, c.title))}">${esc(t)}</span>`).join('');
   const links = (c.links || []).map((l) => `<a class="v5-btn" href="${safeUrl(l.url)}" target="_blank" rel="noopener">${esc(l.text)} ${ARROW}</a>`).join('');
+  const cat = c.category === 'practice' ? tx('case.kickerPractice', 'PRACTICE') : tx('case.kickerProject', 'PROJECT');
 
   return `
   <section class="v5-page-head wrap">
-    ${backBar({ href: '#/experience', label: '返回经历' })}
-    <span class="v5-kicker">${esc(c.category === 'practice' ? 'PRACTICE' : 'PROJECT')} / ${esc(c.number || '')}</span>
+    ${backBar({ href: '#/experience', label: tx('case.back', '返回经历') })}
+    <span class="v5-kicker">${esc(cat)} / ${esc(c.number || '')}</span>
     <h1>${esc(c.title)}</h1>
     <p>${esc(c.summary)}</p>
   </section>
   <section class="v5-detail wrap">
-    <a class="v5-detail-cover" href="${safeUrl(c.cover)}" target="_blank" rel="noopener" aria-label="查看封面原图">
-      <img src="${safeUrl(c.cover)}" alt="${esc(c.title)} 封面" fetchpriority="high" decoding="async">
-      <span class="v5-cover-org">${esc(c.org || '')}</span><span class="v5-open-tag">原图 ↗</span>
+    <a class="v5-detail-cover" href="${safeUrl(c.cover)}" target="_blank" rel="noopener" aria-label="${esc(tx('common.viewOriginal', '查看原图'))}">
+      ${imageFrame(c.cover, `${c.title} ${tx('case.coverAlt', '封面')}`, { loading: 'eager', priority: 'high' })}
+      <span class="v5-cover-org">${esc(c.org || '')}</span><span class="v5-open-tag">${esc(tx('common.originalTag', '原图 ↗'))}</span>
     </a>
     <dl class="v5-detail-meta">
-      <div><dt>归属</dt><dd>${esc(c.org || '—')}</dd></div>
-      <div><dt>时间</dt><dd>${esc(c.period || '—')}</dd></div>
-      <div><dt>角色</dt><dd>${esc(c.role || '—')}</dd></div>
-      <div><dt>分类</dt><dd>${esc(c.category === 'practice' ? '公益实践' : '项目')}</dd></div>
+      <div><dt>${esc(tx('case.metaOrg', '归属'))}</dt><dd>${esc(c.org || '—')}</dd></div>
+      <div><dt>${esc(tx('case.metaPeriod', '时间'))}</dt><dd>${esc(c.period || '—')}</dd></div>
+      <div><dt>${esc(tx('case.metaRole', '角色'))}</dt><dd>${esc(c.role || '—')}</dd></div>
+      <div><dt>${esc(tx('case.metaCategory', '分类'))}</dt><dd>${esc(c.category === 'practice' ? tx('case.categoryPractice', '公益实践') : tx('case.categoryProject', '项目'))}</dd></div>
     </dl>
     <div class="v5-detail-body">
       <div class="v5-detail-sections">${sections}</div>
       <aside class="v5-detail-side">
-        <div class="v5-side-block"><span class="v5-side-label">标签 / TAGS</span><div class="v5-skills">${tags || '<span class="v5-muted">暂无</span>'}</div></div>
-        ${images.length ? `<div class="v5-detail-images">${images.map((img) => `<figure><a class="v5-detail-img" href="${safeUrl(img.src)}" target="_blank" rel="noopener" aria-label="查看原图：${esc(img.alt || c.title)}"><img src="${safeUrl(img.src)}" alt="${esc(img.alt || c.title)}" loading="lazy" decoding="async"><span class="v5-open-tag">原图 ↗</span></a><figcaption>${esc(img.caption || '')}</figcaption></figure>`).join('')}</div>` : ''}
-        ${c.result ? `<div class="v5-result"><span class="v5-side-label">留下什么 / RESULT</span><p>${esc(c.result)}</p></div>` : ''}
+        <div class="v5-side-block"><span class="v5-side-label">${esc(tx('case.tags', '标签 / TAGS'))}</span><div class="v5-skills">${tags || `<span class="v5-muted">${esc(tx('case.empty', '暂无'))}</span>`}</div></div>
+        ${images.length ? `<div class="v5-detail-images">${images.map((img, index) => `<figure><button class="v5-detail-img" type="button" data-photo-open data-photo-json="${esc(JSON.stringify(images.map((x) => ({ src: x.src, alt: x.alt || c.title, caption: x.caption || '' }))))}" data-photo-index="${index}" aria-label="${esc(tx('common.viewOriginal', '查看原图'))}：${esc(img.alt || c.title)}">${imageFrame(img.src, img.alt || c.title, { loading: index === 0 ? 'eager' : 'lazy' })}<span class="v5-open-tag">${esc(tx('common.originalTag', '原图 ↗'))}</span></button><figcaption>${esc(img.caption || '')}</figcaption></figure>`).join('')}</div>` : ''}
+        ${c.result ? `<div class="v5-result"><span class="v5-side-label">${esc(tx('case.result', '留下什么 / RESULT'))}</span><p>${esc(c.result)}</p></div>` : ''}
         ${links ? `<div class="v5-detail-links">${links}</div>` : ''}
       </aside>
     </div>
@@ -636,58 +972,60 @@ function toolIcon(id) {
 function toolCard(t) {
   if (isLocked(t)) {
     return `<article class="v5-tool-card v5-locked reveal">
-      <span class="v5-tool-icon"><span aria-hidden="true">🔒</span></span>
+      <span class="v5-tool-icon"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span></span>
       <span class="v5-tool-body">
-        <span class="v5-project-meta">工具</span>
+        <span class="v5-project-meta">${esc(tx('tools.cardTool', '工具'))}</span>
         <h3>${esc(t.title || t.name || '')}</h3>
-        <p class="v5-tool-problem">该内容暂未公开</p>
+        <p class="v5-tool-problem">${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
       </span>
     </article>`;
   }
-  return `<a class="v5-tool-card reveal" href="#/tools/${esc(t.id)}">
+  return `<a class="v5-tool-card reveal" href="#/tools/${esc(t.id)}" data-tool-id="${esc(t.id)}">
     <span class="v5-tool-icon">${toolIcon(t.id)}</span>
     <span class="v5-tool-body">
-      <span class="v5-project-meta">${esc(t.category === 'convert' ? '转换' : '查询')}</span>
+      <span class="v5-project-meta">${esc(t.category === 'convert' ? tx('tools.cardConvert', '转换') : tx('tools.cardQuery', '查询'))}</span>
       <h3>${esc(t.name)}</h3>
       <p class="v5-tool-problem">${esc(t.problem || t.desc || '')}</p>
-      <p class="v5-tool-prereq">使用前提：${esc(t.prereq || '在浏览器本地运行。')}</p>
+      <p class="v5-tool-prereq">${esc(tx('tools.cardPrereq', '使用前提：'))}${esc(t.prereq || '在浏览器本地运行。')}</p>
     </span>
-    <span class="v5-tool-go">${ARROW}</span>
+    <span class="v5-tool-go"><span>${esc(tx('tools.cardAction', '立即使用'))}</span>${ARROW}</span>
+  </a>`;
+}
+
+function featuredToolCard(t) {
+  if (!t) return '';
+  return `<a class="v5-feature-tool reveal" href="#/tools/${esc(t.id)}" data-tool-id="${esc(t.id)}" aria-label="${esc(tx('tools.featuredAction', '立即使用'))}：${esc(t.name)}">
+    <span class="v5-feature-tool-icon">${toolIcon(t.id)}</span>
+    <span class="v5-feature-tool-copy">
+      <span class="v5-kicker">${esc(tx('tools.featuredKicker', 'CORE / CONVERTER'))}</span>
+      <h2>${esc(t.name || tx('tools.featuredTitle', '文件转换台'))}</h2>
+      <p>${esc(t.desc || t.problem || tx('tools.featuredLead', ''))}</p>
+      <span class="v5-feature-tool-action">${esc(tx('tools.featuredAction', '立即使用'))} ${ARROW}</span>
+    </span>
+    <span class="v5-feature-tool-glow" aria-hidden="true"></span>
   </a>`;
 }
 
 function renderTools() {
-  const tools = state.data.tools;
+  const tools = state.data.tools || {};
   const list = toolModules();
-  const featured = list.find((t) => t.featured || t.id === 'converter');
-  const utilities = list.filter((t) => t !== featured);
+  const featured = list.find((t) => t.featured || t.id === 'converter') || list[0];
+  const utilities = list.filter((t) => t !== featured).slice(0, 5);
   const cards = utilities.map(toolCard).join('');
-
-  setTimeout(async () => {
-    const host = $('#converterApp');
-    if (!host || !featured) return;
-    try {
-      const mod = await import(`/tools/${featured.module}?v=${Date.now()}`);
-      if (typeof mod.render !== 'function') throw new Error('转换台模块缺少 render');
-      host.innerHTML = '';
-      await mod.render(host, { toast });
-    } catch (err) {
-      host.innerHTML = `<p class="tool-error">转换台加载失败：${esc(err.message)}</p>`;
-    }
-  }, 0);
+  const count = (featured ? 1 : 0) + utilities.length;
 
   return `
   <section class="v5-page-head wrap">
     ${backBar()}
-    <span class="v5-kicker">05 / TOOLS</span>
-    <h1>${esc(tools.title || '在线工具箱')}</h1>
+    <span class="v5-kicker">${esc(tx('tools.kicker', '05 / TOOLS'))}</span>
+    <h1>${esc(tools.title || tx('tools.featuredTitle', '在线工具箱'))}</h1>
     <p>${esc(tools.intro || '')}</p>
   </section>
   <section class="v5-section wrap">
-    <div class="v5-tools-status"><span><i></i>LOCAL ENGINE / READY</span><span><span class="v5-count" data-count="${list.length}" data-tip="自建在线工具" tabindex="0">${list.length}</span> 个工具</span><span>NO SERVER / NO UPLOAD</span></div>
-    <div class="converter-mount" id="converterApp"><p class="tool-loading">转换台初始化中…</p></div>
-    <div class="v5-tools-sub">${sectionHead('05.1 / UTILITIES', '常用的几个', '转换台之外，保留这些轻量工具。每个都写了使用前提。')}</div>
-    <div class="v5-tool-grid">${cards || '<p class="v5-empty">工具正在整理。</p>'}</div>
+    <div class="v5-tools-status"><span><i></i>${esc(tx('tools.statusReady', 'LOCAL ENGINE / READY'))}</span><span><span class="v5-count" data-count="${count}" data-tip="${esc(tx('tools.statusTip', '自建在线工具'))}" tabindex="0">${count}</span> ${esc(tx('tools.unit', '个'))}${esc(tx('tools.unitSuffix', '工具'))}</span><span>${esc(tx('tools.statusLocal', 'NO SERVER / NO UPLOAD'))}</span></div>
+    ${featuredToolCard(featured)}
+    <div class="v5-tools-sub">${sectionHead(tx('tools.utilitiesKicker', '05.1 / UTILITIES'), tx('tools.utilitiesTitle', '常用的几个'), tx('tools.utilitiesLead', ''))}</div>
+    <div class="v5-tool-grid v5-tool-grid--five">${cards || `<p class="v5-empty">${esc(tx('tools.empty', '工具正在整理。'))}</p>`}</div>
   </section>`;
 }
 
@@ -695,28 +1033,28 @@ async function renderTool(id) {
   const enabled = toolModules().find((t) => t.id === id);
   const item = enabled || (state.data.tools.items || []).find((t) => t.id === id);
   if (!item) {
-    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: '返回工具' })}<h1>工具不存在或已关闭</h1></section>`;
+    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: tx('tools.back', '返回工具') })}<h1>${esc(tx('tools.missing', '工具不存在或已关闭'))}</h1></section>`;
   }
   if (isLocked(item)) {
     return `
     <section class="v5-page-head wrap">
-      ${backBar({ href: '#/tools', label: '返回工具' })}
-      <span class="v5-kicker">TOOL</span>
+      ${backBar({ href: '#/tools', label: tx('tools.back', '返回工具') })}
+      <span class="v5-kicker">${esc(tx('tools.detailKicker', 'TOOL'))}</span>
       <h1>${esc(item.title || item.name || '')}</h1>
-      <p class="v5-locked-note"><span aria-hidden="true">🔒</span> 该内容暂未公开</p>
+      <p class="v5-locked-note"><span class="v5-lock-icon" aria-hidden="true">${LOCK}</span> ${esc(tx('common.privateNote', '该内容暂未公开'))}</p>
     </section>`;
   }
   if (!enabled) {
-    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: '返回工具' })}<h1>工具不存在或已关闭</h1></section>`;
+    return `<section class="v5-page-head wrap">${backBar({ href: '#/tools', label: tx('tools.back', '返回工具') })}<h1>${esc(tx('tools.missing', '工具不存在或已关闭'))}</h1></section>`;
   }
   const head = `
   <section class="v5-page-head wrap">
-    ${backBar({ href: '#/tools', label: '返回工具' })}
-    <div class="v5-tool-title"><span class="v5-tool-icon">${toolIcon(item.id)}</span><div><span class="v5-kicker">TOOL / ${esc(item.id.toUpperCase())}</span><h1>${esc(item.name)}</h1></div></div>
+    ${backBar({ href: '#/tools', label: tx('tools.back', '返回工具') })}
+    <div class="v5-tool-title"><span class="v5-tool-icon">${toolIcon(item.id)}</span><div><span class="v5-kicker">${esc(tx('tools.detailKicker', 'TOOL'))} / ${esc(item.id.toUpperCase())}</span><h1>${esc(item.name)}</h1></div></div>
     <p>${esc(item.desc || '')}</p>
-    <p class="v5-tool-prereq">解决什么问题：${esc(item.problem || '')}　使用前提：${esc(item.prereq || '在浏览器本地运行。')}</p>
+    <p class="v5-tool-prereq">${esc(tx('tools.problem', '解决什么问题：'))}${esc(item.problem || '')}　${esc(tx('tools.cardPrereq', '使用前提：'))}${esc(item.prereq || '在浏览器本地运行。')}</p>
   </section>
-  <section class="v5-section wrap"><div class="tool-panel" id="toolPanel"><p class="tool-loading">模块加载中…</p></div></section>`;
+  <section class="v5-section wrap"><div class="tool-panel" id="toolPanel"><p class="tool-loading">${esc(tx('tools.loadingModule', '模块加载中…'))}</p></div></section>`;
 
   setTimeout(async () => {
     const panel = $('#toolPanel');
@@ -724,11 +1062,11 @@ async function renderTool(id) {
     try {
       const stamp = Date.now();
       const mod = await import(`/tools/${item.module}?v=${stamp}`);
-      if (typeof mod.render !== 'function') throw new Error('模块缺少 render 函数');
+      if (typeof mod.render !== 'function') throw new Error(tx('errors.missingRender', '模块缺少 render 函数'));
       panel.innerHTML = '';
       await mod.render(panel, { toast, item });
     } catch (err) {
-      panel.innerHTML = `<p class="tool-error">工具加载失败：${esc(err.message)}</p>`;
+      panel.innerHTML = `<p class="tool-error">${esc(tx('errors.tool', '工具加载失败'))}：${esc(err.message)}</p>`;
     }
   }, 0);
   return head;
@@ -740,65 +1078,55 @@ function renderFoot() {
   const email = contacts.find((c) => (c.label || '').includes('邮箱'));
   const contactItems = contacts.map((c) => {
     if (isLocked(c)) {
-      const inner = `<span class="foot-contact-label">${esc(c.title || c.label || '')}</span><span class="foot-contact-value">暂未公开</span>`;
+      const inner = `<span class="foot-contact-label">${esc(c.title || c.label || '')}</span><span class="foot-contact-value">${esc(tx('footer.emailLocked', '暂未公开'))}</span>`;
       return `<span class="foot-contact-item">${inner}</span>`;
     }
-    const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${(c.label || '').includes('邮箱') && c.url ? '点击发送' : esc(c.value)}</span>`;
+    const inner = `<span class="foot-contact-label">${esc(c.label)}</span><span class="foot-contact-value">${(c.label || '').includes('邮箱') && c.url ? esc(tx('footer.emailSend', '邮箱 · 点击发送')) : esc(c.value)}</span>`;
     if (c.url) return `<a class="foot-contact-item" href="${safeUrl(c.url)}" ${String(c.url).startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${inner}<span class="foot-contact-arrow">${ARROW}</span></a>`;
     return `<span class="foot-contact-item">${inner}</span>`;
   }).join('');
-  const adminLink = state.source === 'api' ? '<a href="/admin">后台管理</a>' : '';
+  const adminLink = state.source === 'api' ? `<a href="/admin">${esc(tx('footer.admin', '后台管理'))}</a>` : '';
+  const avatars = (SITE_TEXT.footer.avatars || []).map((a) => `<button class="v5-avatar" type="button" data-name="${esc(a.name)}" data-role="${esc(a.role)}" data-sub="${esc(a.sub)}" aria-label="${esc(a.label)}">
+            ${imageFrame(a.image, '', { loading: 'lazy' })}
+          </button>`).join('');
   return `<div class="wrap">
-    <div class="foot-kicker"><span>CONTACT</span><span class="foot-status"><i></i>OPEN TO INTERNSHIP</span></div>
+    <div class="foot-kicker"><span>${esc(tx('footer.contactKicker', 'CONTACT'))}</span><span class="foot-status"><i></i>${esc(tx('footer.open', 'OPEN TO INTERNSHIP'))}</span></div>
     <div class="foot-top">
       <div>
-        <h2 class="foot-title">有想法，<br>随时聊。</h2>
-        ${email ? (isLocked(email) ? `<span class="foot-mail">暂未公开</span>` : `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${email.url ? '邮箱 · 点击发送' : esc(email.value)}</a>`) : ''}
-        <p class="foot-motto">无限进步</p>
-        <div class="v5-avatar-group" role="group" aria-label="关于我的四个切面">
-          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="山东石油化工学院" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，山东石油化工学院物联网工程 2025 级">
-            <img src="/uploads/avatars/school.webp" alt="" loading="lazy" decoding="async">
-          </button>
-          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="校内科技协会" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，校内科技协会">
-            <img src="/uploads/avatars/kexie.webp" alt="" loading="lazy" decoding="async">
-          </button>
-          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="公益课讲师 · 东营区图书馆" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，东营区图书馆公益课讲师">
-            <img src="/uploads/avatars/physics.webp" alt="" loading="lazy" decoding="async">
-          </button>
-          <button class="v5-avatar" type="button" data-name="孙志昊" data-role="骑行 · 东营" data-sub="2025 级 · 物联网工程" aria-label="孙志昊，骑行爱好者">
-            <img src="/uploads/avatars/cycling.webp" alt="" loading="lazy" decoding="async">
-          </button>
-        </div>
+        <h2 class="foot-title">${esc(tx('footer.titleA', '有想法，'))}<br>${esc(tx('footer.titleB', '随时聊。'))}</h2>
+        ${email ? (isLocked(email) ? `<span class="foot-mail">${esc(tx('footer.emailLocked', '暂未公开'))}</span>` : `<a class="foot-mail" href="${safeUrl(email.url || 'mailto:' + email.value)}">${email.url ? esc(tx('footer.emailSend', '邮箱 · 点击发送')) : esc(email.value)}</a>`) : ''}
+        <p class="foot-motto">${esc(tx('footer.motto', '无限进步'))}</p>
+        <div class="v5-avatar-group" role="group" aria-label="${esc(tx('footer.avatarGroupLabel', ''))}">${avatars}</div>
       </div>
       <div class="foot-contact-list">
         ${contactItems}
-        <p class="foot-issue">邮件通常回得最快。GitHub、Gitee 仓库开 Issue 也能联系。</p>
+        <p class="foot-issue">${esc(tx('footer.issue', ''))}</p>
       </div>
     </div>
     <section class="foot-guest" id="guestbook" aria-labelledby="guestbookTitle">
       <div class="foot-guest-head">
         <div>
-          <span class="mini-label">GUESTBOOK / ANON</span>
-          <h3 id="guestbookTitle">留言</h3>
-          <p id="guestMode">不用登录。留个昵称，把想说的话写下来。</p>
+          <span class="mini-label">${esc(tx('footer.guestKicker', 'GUESTBOOK / ANON'))}</span>
+          <h3 id="guestbookTitle">${esc(tx('footer.guestTitle', '留言'))}</h3>
+          <p id="guestMode">${esc(tx('footer.guestLead', ''))}</p>
         </div>
         <span class="foot-guest-count" id="guestCount" hidden></span>
       </div>
       <form class="guest-form" id="guestForm" novalidate>
-        <div class="guest-field guest-field--name"><label for="guestName">昵称</label><input id="guestName" name="nickname" maxlength="20" autocomplete="nickname" placeholder="你的昵称" required></div>
-        <div class="guest-field guest-field--text"><label for="guestText">留言</label><textarea id="guestText" name="text" maxlength="500" rows="4" placeholder="想说的话，最多 500 字。" required></textarea></div>
-        <div class="guest-honeypot" aria-hidden="true"><label>网站<input name="website" tabindex="-1" autocomplete="off"></label></div>
-        <div class="guest-actions"><span class="guest-hint" id="guestHint">留个昵称就能写，不需要登录。</span><button type="submit" class="v5-btn v5-btn--primary" id="guestSubmit">发送留言 ${ARROW}</button></div>
+        <div class="guest-field guest-field--name"><label for="guestName">${esc(tx('footer.nameLabel', '昵称'))}</label><input id="guestName" name="nickname" maxlength="20" autocomplete="off" placeholder="${esc(tx('footer.namePlaceholder', '你的昵称'))}" required></div>
+        <div class="guest-field guest-field--text"><label for="guestText">${esc(tx('footer.textLabel', '留言'))}</label><textarea id="guestText" name="text" maxlength="500" rows="4" placeholder="${esc(tx('footer.textPlaceholder', '想说的话，最多 500 字。'))}" required></textarea></div>
+        <div class="guest-honeypot" aria-hidden="true"><label>${esc(tx('footer.guestHoneypot', ''))}<input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="guest-actions"><span class="guest-hint" id="guestHint">${esc(tx('footer.guestHint', ''))}</span><button type="submit" class="v5-btn v5-btn--primary" id="guestSubmit">${esc(tx('footer.guestSubmit', '发送留言'))} ${ARROW}</button></div>
         <p class="guest-status" id="guestStatus" role="status" aria-live="polite"></p>
       </form>
       <div class="guest-list" id="guestList" hidden></div>
     </section>
     <div class="foot-links foot-links--meta">
       ${adminLink}
-      <a href="/classic/">经典版 ${ARROW}</a>
-      <a href="#/">回到顶部 ↑</a>
+      <a href="/classic/">${esc(tx('footer.classic', '经典版'))} ${ARROW}</a>
+      <a href="#/">${esc(tx('common.backTop', '回到顶部 ↑'))}</a>
     </div>
-    <div class="foot-bottom"><span>${esc(state.data.site.footer || '')}</span><span class="foot-credit">Animations adapted from React Bits (MIT + Commons Clause) · Button form by reglobby (Uiverse, MIT)</span><span>BUILD&nbsp;5.0&nbsp;/&nbsp;2026.11</span></div>
+    <div class="foot-bottom"><span>${esc(state.data.site.footer || '')}</span><span class="foot-credit">${esc(tx('footer.credit', ''))}</span><span>${esc(tx('footer.build', 'BUILD 5.0 / 2026.11'))}</span></div>
   </div>`;
 }
 
@@ -810,7 +1138,7 @@ function guestbookEndpoint() {
 
 function guestbookEmail() {
   const contact = ((state.data.home && state.data.home.contacts) || []).find((c) => (c.label || '').includes('邮箱'));
-  return (contact && contact.value) || '1322816531@qq.com';
+  return (contact && contact.value) || tx('home.emailFallback', '');
 }
 
 function guestTime(iso) {
@@ -820,16 +1148,16 @@ function guestTime(iso) {
 }
 
 function guestMessageHtml(item) {
-  return `<article class="guest-item"><div class="guest-item-head"><strong>${esc(item.nickname || '匿名')}</strong><time>${esc(guestTime(item.at))}</time></div><p>${esc(item.text || '')}</p></article>`;
+  return `<article class="guest-item"><div class="guest-item-head"><strong>${esc(item.nickname || tx('common.anonymous', ''))}</strong><time>${esc(guestTime(item.at))}</time></div><p>${esc(item.text || '')}</p></article>`;
 }
 
 function guestMailto(nickname, text, hint) {
   const email = guestbookEmail();
-  const subject = `网站留言 · ${nickname}`;
-  const body = `昵称：${nickname}\n\n${text}\n\n（来自 sunzhihaoai.top 留言框）`;
+  const subject = tx('footer.guestMailSubject', '', { name: nickname });
+  const body = tx('footer.guestMailBody', '', { name: nickname, text });
   window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  if (hint) hint.textContent = '已打开邮件应用。如果没有反应，请使用页脚的邮箱入口。';
-  toast('已打开邮件应用');
+  if (hint) hint.textContent = tx('footer.guestMailHint', '已打开邮件应用。如果没有反应，请使用页脚的邮箱入口。');
+  toast(tx('footer.guestMail', '已打开邮件应用'));
 }
 
 async function refreshGuestbook(list, count, hint) {
@@ -841,11 +1169,11 @@ async function refreshGuestbook(list, count, hint) {
     const data = await res.json();
     const items = data.items || [];
     count.hidden = false;
-    count.textContent = `${items.length} 条`;
+    count.textContent = tx('footer.guestCount', '{count} 条', { count: items.length });
     list.hidden = false;
-    list.innerHTML = items.length ? items.map(guestMessageHtml).join('') : '<p class="guest-empty">还没有留言，来做第一个。</p>';
+    list.innerHTML = items.length ? items.map(guestMessageHtml).join('') : `<p class="guest-empty">${esc(tx('footer.guestEmpty', '还没有留言，来做第一个。'))}</p>`;
   } catch (err) {
-    hint.textContent = `留言服务暂时不可用；提交时会改为发到 ${guestbookEmail()}。`;
+    hint.textContent = tx('footer.guestUnavailable', '留言服务暂时不可用；提交时会改为发到站内邮箱。');
   }
 }
 
@@ -867,26 +1195,30 @@ function bindGuestbook() {
   };
   const endpoint = guestbookEndpoint();
 
-  try { name.value = localStorage.getItem('pf-guest-name') || ''; } catch (err) { /* ignore */ }
+  try {
+    const saved = String(localStorage.getItem('pf-guest-name') || '').trim();
+    if (/^(test|测试|test用户)$/i.test(saved)) localStorage.removeItem('pf-guest-name');
+    else name.value = saved;
+  } catch (err) { /* ignore */ }
 
   if (endpoint) {
-    hint.textContent = '留言会公开显示在下方，不用登录。';
+    hint.textContent = tx('footer.guestPublic', '留言会公开显示在下方，不用登录。');
     refreshGuestbook(list, count, hint);
   } else {
-    hint.textContent = '静态站点：提交后会打开邮件应用，发到站内邮箱。';
+    hint.textContent = tx('footer.guestStatic', '静态站点：提交后会打开邮件应用，发到站内邮箱。');
   }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const nickname = String(name.value || '').trim();
     const message = String(text.value || '').trim();
-    if (!nickname) { say('先留一个昵称。', 'err'); toast('先留一个昵称。'); name.focus(); return; }
-    if (!message) { say('留言内容不能为空。', 'err'); toast('留言内容不能为空。'); text.focus(); return; }
+    if (!nickname) { const message = tx('footer.guestBadName', '先留一个昵称。'); say(message, 'err'); toast(message); name.focus(); return; }
+    if (!message) { const notice = tx('footer.guestBadText', '留言内容不能为空。'); say(notice, 'err'); toast(notice); text.focus(); return; }
     try { localStorage.setItem('pf-guest-name', nickname); } catch (err) { /* ignore */ }
-    if (!endpoint) { say('静态站点：已打开邮件应用发送留言。', 'ok'); guestMailto(nickname, message, hint); return; }
+    if (!endpoint) { say(tx('footer.guestStatic', '静态站点：提交后会打开邮件应用，发到站内邮箱。'), 'ok'); guestMailto(nickname, message, hint); return; }
 
     submit.disabled = true;
-    say('发送中…');
+    say(tx('footer.guestSending', '发送中…'));
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -894,7 +1226,7 @@ function bindGuestbook() {
         body: JSON.stringify({ nickname, text: message, website: String(form.querySelector('[name="website"]')?.value || '') })
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '发送失败');
+      if (!res.ok) throw new Error(data.error || tx('footer.guestMailError', ''));
       form.reset();
       name.value = nickname;
       if (list) {
@@ -906,14 +1238,14 @@ function bindGuestbook() {
       if (count) {
         const current = Number((count.textContent || '').replace(/\D/g, '')) || 0;
         count.hidden = false;
-        count.textContent = `${current + 1} 条`;
+        count.textContent = tx('footer.guestCount', '{count} 条', { count: current + 1 });
       }
-      hint.textContent = '留言已发出。';
-      say('留言已发出。', 'ok');
-      toast('留言已发出');
+      hint.textContent = tx('footer.guestSent', '留言已发出。');
+      say(tx('footer.guestSent', '留言已发出。'), 'ok');
+      toast(tx('footer.guestSent', '留言已发出。'));
     } catch (err) {
-      hint.textContent = `公开留言暂时不可用，改为发到 ${guestbookEmail()}。`;
-      say('公开留言暂时不可用，已改为邮件发送。', 'err');
+      hint.textContent = tx('footer.guestMailStatus', '公开留言暂时不可用，改为发到站内邮箱。');
+      say(tx('footer.guestMailFallback', '公开留言暂时不可用，已改为邮件发送。'), 'err');
       guestMailto(nickname, message, hint);
     } finally { submit.disabled = false; }
   });
@@ -938,14 +1270,14 @@ function revealIn() {
 }
 
 function renderClosedBranch(branch) {
-  return `<section class="v5-page-head wrap">${backBar()}<p class="v5-kicker">BRANCH CLOSED</p><h1>${esc(branch.label || '这个分支')}暂时关闭</h1><p>该分支已在后台隐藏。你仍然可以从底部入口进入经典版，或在后台重新启用它。</p><div class="v5-actions"><a class="v5-btn v5-btn--primary" href="#/">回到主页 ${ARROW}</a></div></section>`;
+  return `<section class="v5-page-head wrap">${backBar()}<p class="v5-kicker">${esc(tx('branchClosed.kicker', ''))}</p><h1>${esc(branch.label || tx('branchClosed.fallbackName', ''))}${esc(tx('branchClosed.titleSuffix', ''))}</h1><p>${esc(tx('branchClosed.lead', ''))}</p><div class="v5-actions"><a class="v5-btn v5-btn--primary" href="#/">${esc(tx('branchClosed.action', ''))} ${ARROW}</a></div></section>`;
 }
 
 async function render(scrollTop = false) {
   state.route = parseRoute();
   const view = $('#view');
-  const titles = { home: '首页', internship: '实习', experience: '经历', interest: '兴趣', work: '项目', tools: '工具箱' };
-  document.title = `${state.data.site.brand || '孙志昊'} · ${titles[state.route.name] || '首页'}`;
+  const titles = { home: tx('nav.home', ''), internship: tx('nav.internship', ''), experience: tx('nav.experience', ''), interest: tx('nav.interest', ''), work: tx('nav.work', ''), tools: tx('nav.tools', '') };
+  document.title = `${state.data.site.brand || tx('common.brandFallback', '')} · ${titles[state.route.name] || titles.home}`;
 
   const branch = (state.data.branches || []).find((b) => b.id === state.route.name);
   let html = '';
@@ -959,6 +1291,10 @@ async function render(scrollTop = false) {
   else html = renderHome();
 
   view.innerHTML = html;
+  hydrateImages(view);
+  bindAlbumFilter(view);
+  bindPhotoEntries(view);
+  bindTimelinePhotos(view);
   updateNavActive();
   revealIn();
 
@@ -1005,7 +1341,7 @@ async function boot() {
   try {
     state.data = await loadData();
   } catch (err) {
-    $('#view').innerHTML = `<section class="v5-page-head wrap"><h1>站点数据加载失败</h1><p>${esc(err.message)}。请确认服务已启动，或检查 /data/site.json 是否存在。</p></section>`;
+    $('#view').innerHTML = `<section class="v5-page-head wrap"><h1>${esc(tx('errors.data', ''))}</h1><p>${esc(err.message)}。${esc(tx('errors.dataHint', ''))}</p></section>`;
     return;
   }
 
@@ -1037,7 +1373,7 @@ async function boot() {
             $('#foot').innerHTML = renderFoot();
             bindGuestbook();
             await render(false);
-            toast('内容已更新');
+            toast(tx('common.updated', ''));
           } catch (err) { /* ignore */ }
         }, 500);
       });

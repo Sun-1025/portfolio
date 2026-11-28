@@ -15,6 +15,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { makeThumbs } = require('./make-thumbs');
+const { makeMediums } = require('./make-mediums');
 
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -133,7 +135,11 @@ async function main() {
   log(`部署前缀：${BASE || '/'}`);
 
   if (fs.existsSync(OUT)) fs.rmSync(OUT, { recursive: true, force: true });
-  fs.mkdirSync(OUT, { recursive: true });
+  if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
+
+  // 0. 缩略图（渐进加载垫底图）与卡片中图，在复制 public 前生成
+  await makeThumbs();
+  await makeMediums();
 
   // 1. 页面与资源
   copy(path.join(PUBLIC, 'index.html'), path.join(OUT, 'index.html'));

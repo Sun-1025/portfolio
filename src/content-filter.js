@@ -48,12 +48,16 @@ function isDraft(item) { return !!(item && item.status === 'draft'); }
 function isPrivate(item) { return !!(item && item.visible === false); }
 
 function placeholder(item, type) {
-  return {
+  const out = {
     id: String(item.id || ''),
     type,
     title: String(item.title || item.label || item.name || ''),
     note: NOTE,
   };
+  // 保留归属合集与排序：私密条目仍挂在自己的父级下，前台不会把它当成顶层卡片。
+  if (item.parent) out.parent = String(item.parent);
+  if (Number.isFinite(item.order)) out.order = item.order;
+  return out;
 }
 
 function stripPrivateFields(obj) {

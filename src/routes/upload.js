@@ -6,6 +6,8 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const { requireAuth } = require('../auth');
+const { makeThumbForFile } = require('../../scripts/make-thumbs');
+const { makeMediumForFile } = require('../../scripts/make-mediums');
 
 const router = express.Router();
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -45,10 +47,14 @@ const upload = multer({
 });
 
 router.post('/upload', requireAuth, (req, res) => {
-  upload.single('file')(req, res, (err) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ ok: false, error: err.message });
     if (!req.file) return res.status(400).json({ ok: false, error: '没有收到文件' });
     const priv = String(req.query.scope || '') === 'private';
+    if (!priv) {
+      await makeThumbForFile(req.file.path);
+      await makeMediumForFile(req.file.path);
+    }
     res.json({ ok: true, url: (priv ? '/uploads/private/' : '/uploads/') + req.file.filename, name: req.file.filename, private: priv });
   });
 });
@@ -78,6 +84,8 @@ router.delete('/media/:name', requireAuth, (req, res) => {
   const file = path.join(UPLOAD_DIR, name);
   if (!fs.existsSync(file)) return res.status(404).json({ ok: false, error: '文件不存在' });
   fs.unlinkSync(file);
+  const thumb = path.join(ROOT, 'public', 'assets', 'thumbs', 'uploads', `${name}.webp`);
+  if (fs.existsSync(thumb)) fs.unlinkSync(thumb);
   res.json({ ok: true });
 });
 

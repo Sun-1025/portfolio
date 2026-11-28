@@ -85,10 +85,14 @@ const TYPES = [
     preview: (id) => `#/tools/${id}`,
   },
   {
-    id: 'timeline', label: '时间线', path: ['home', 'timeline'], single: false, icon: '≡',
+    id: 'timeline', label: '成长时间线', path: ['home', 'timeline'], single: false, icon: '≡',
+    desc: '首页四学段时间线；照片建议 3–6 张',
     fields: [
-      F('no', '编号', 'half'), F('label', '标题'), F('meta', '时间 / 单位', 'half'),
-      F('text', '说明', 'textarea'),
+      F('no', '编号', 'half'), F('label', '学段名称'), F('meta', '时间跨度', 'half'),
+      F('text', '个人说明（150–200 字）', 'textarea'),
+      F('photos', '成长照片（3–6 张）', 'images', { date: true }),
+      F('photoLabel', '照片按钮文案', 'text', { hint: '例如：看这一段的照片' }),
+      F('modalNote', '弹窗补充说明', 'textarea', { hint: '可留空，会显示在弹窗底部' }),
     ],
     preview: () => '#/experience',
   },
@@ -972,7 +976,7 @@ function rowListHtml(f, path, list, kind) {
   const rows = list.map((row, i) => rowHtml(kind, f, `${path}.${i}`, row, i, list.length)).join('');
   return `<div class="ad-rows" data-list="${path}" data-kind="${kind}">
     ${rows || '<p class="ad-muted ad-rows-empty">暂无，点下面新增。</p>'}
-    <button type="button" class="ad-btn ad-btn--mini ad-btn--dash" data-act="add-row" data-path="${path}" data-kind="${kind}">＋ 新增一行</button>
+    <button type="button" class="ad-btn ad-btn--mini ad-btn--dash" data-act="add-row" data-path="${path}" data-kind="${kind}" data-date="${f.date ? '1' : '0'}">＋ 新增一行</button>
   </div>`;
 }
 
@@ -1001,6 +1005,7 @@ function rowHtml(kind, f, path, row, index, total) {
     inner = `<div class="ad-img-row">
       <div class="ad-img-thumb">${src ? `<img src="${esc(src)}" alt="">` : '<span>—</span>'}</div>
       <div class="ad-img-fields">
+        ${f.date ? `<label class="ad-img-date"><span>时间</span><input type="date" data-path="${path}.date" value="${esc(row && row.date || '')}"></label>` : ''}
         <input type="text" data-path="${path}.src" value="${esc(src)}" placeholder="图片地址">
         <input type="text" data-path="${path}.alt" value="${esc(row && row.alt || '')}" placeholder="替代文字">
         <input type="text" data-path="${path}.caption" value="${esc(row && row.caption || '')}" placeholder="图注">
@@ -1065,7 +1070,7 @@ function markDirty() {
   if (!state.drawer) return;
   state.drawer.dirty = true;
   const btn = $('.ad-drawer-foot [data-act="save"]');
-  if (btn) btn.textContent = '保存（有修改）';
+  if (btn) { btn.disabled = false; btn.textContent = '保存（有修改）'; }
   updateSaveState();
   clearTimeout(state.draftTimer);
   state.draftTimer = setTimeout(saveLocalDraft, 5000);
@@ -1283,7 +1288,9 @@ function addRow(el) {
   if (!Array.isArray(list)) { list = []; setPath(d.draft, path, list); }
   const blank = kind === 'str' ? '' : kind === 'kv' ? { k: '', v: '' }
     : kind === 'obj2' ? {} : kind === 'section' ? { h: '', p: '' }
-    : kind === 'link' ? { text: '', url: '' } : { src: '', alt: '', caption: '' };
+    : kind === 'link' ? { text: '', url: '' }
+    : kind === 'image' ? { src: '', alt: '', caption: '', ...(el.dataset.date === '1' ? { date: '' } : {}) }
+    : { src: '', alt: '', caption: '' };
   list.push(blank);
   renderDrawer();
   markDirty();

@@ -19,7 +19,7 @@ const FIELDS = {
   settings: ['sessionHours', 'idleMinutes', 'classicLabel', 'showClassic'],
   nav:      ['label', 'type', 'target', 'visible', 'order'],
   branch:   ['label', 'type', 'description', 'visible', 'order'],
-  timeline: ['no', 'label', 'meta', 'text', 'visible', 'order'],
+  timeline: ['no', 'label', 'meta', 'text', 'visible', 'order', 'photos', 'photoLabel', 'modalNote'],
   contact:  ['label', 'value', 'url', 'visible', 'order'],
   campus:   ['title', 'text', 'image', 'alt', 'caption', 'visible', 'order'],
   case:     ['title', 'kind', 'category', 'number', 'org', 'period', 'role', 'summary', 'tags', 'images', 'links', 'sections', 'result', 'cover', 'visible', 'order'],
