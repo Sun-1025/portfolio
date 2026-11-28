@@ -1347,6 +1347,7 @@ async function boot() {
 
   renderNav();
   $('#foot').innerHTML = renderFoot();
+  hydrateImages($('#foot'));
   bindGuestbook();
   await render();
 
@@ -1371,6 +1372,7 @@ async function boot() {
             state.data = await loadData();
             renderNav();
             $('#foot').innerHTML = renderFoot();
+            hydrateImages($('#foot'));
             bindGuestbook();
             await render(false);
             toast(tx('common.updated', ''));
